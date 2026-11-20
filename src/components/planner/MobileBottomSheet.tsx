@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronUp, Compass, Navigation } from 'lucide-react';
+import { Compass, Navigation } from 'lucide-react';
 import { formatDistance, formatDuration, formatMunichTime } from '@/lib/geo';
 import { getTranslations } from '@/lib/i18n';
 import { useNavStore, type MobileSheetSnap } from '@/store/useNavStore';
@@ -14,11 +14,18 @@ import { TransitOptionsBar } from './TransitOptionsBar';
 import { WalkOptionsBar } from './WalkOptionsBar';
 import { RouteResults } from './RouteResults';
 
+const SNAP_ORDER: MobileSheetSnap[] = ['peek', 'half', 'full'];
+
 const SNAP_HEIGHTS_VH: Record<MobileSheetSnap, number> = {
-  peek: 20, // ~165px on iPhone 14 — keeps ~80% of map clear!
+  peek: 20, // ~165px on iPhone 14 — keeps ~80% of map clear
   half: 50, // balanced 50/50 map & planner view
   full: 91, // full-height directions & editing below status bar
 };
+
+function getSnapHeightPx(s: MobileSheetSnap, vh: number): number {
+  if (s === 'peek') return Math.max(162, Math.round(vh * 0.19));
+  return Math.round((vh * SNAP_HEIGHTS_VH[s]) / 100);
+}
 
 export function MobileBottomSheet() {
   const snap = useNavStore((s) => s.mobileSheetSnap);
@@ -39,6 +46,7 @@ export function MobileBottomSheet() {
   const showingStation = Boolean(selectedStation);
   const showingPin = !showingStation && Boolean(mapClickPin);
 
+  const sheetRef = useRef<HTMLDivElement>(null);
   const scrollBodyRef = useRef<HTMLDivElement>(null);
 
   // Scroll sheet content smoothly back to top whenever a new route arrives so the Hero Card is front & center
@@ -48,54 +56,53 @@ export function MobileBottomSheet() {
     }
   }, [transitPlan, roadRoute]);
 
-  // Smooth touch-draggable sheet state
+  // Pure drag-only bottom sheet state (tapping/pressing the pull tab does nothing)
   const [dragHeightPx, setDragHeightPx] = useState<number | null>(null);
   const dragRef = useRef<{
     pointerId: number;
     startY: number;
     startHeightPx: number;
-    lastY: number;
-    lastTime: number;
-    velocityY: number;
+    currentHeightPx: number;
     moved: boolean;
   } | null>(null);
 
-  const getSnapPx = (s: MobileSheetSnap) => {
-    const vh = typeof window !== 'undefined' ? window.innerHeight : 844;
-    if (s === 'peek') return Math.max(158, Math.round(vh * 0.2));
-    return Math.round((vh * SNAP_HEIGHTS_VH[s]) / 100);
-  };
-
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement).closest('button, input, a')) return;
+    // Allow normal taps on real interactive controls (Share, DE, Theme, Mode tabs, GO button)
+    if ((e.target as HTMLElement).closest('button, input, a, select, textarea')) return;
+
     const vh = window.innerHeight || 844;
-    const startHeightPx = dragHeightPx ?? getSnapPx(snap);
+    const measuredHeight =
+      sheetRef.current?.getBoundingClientRect().height ?? getSnapHeightPx(snap, vh);
+
     dragRef.current = {
       pointerId: e.pointerId,
       startY: e.clientY,
-      startHeightPx: Math.min(vh * 0.92, Math.max(146, startHeightPx)),
-      lastY: e.clientY,
-      lastTime: performance.now(),
-      velocityY: 0,
+      startHeightPx: measuredHeight,
+      currentHeightPx: measuredHeight,
       moved: false,
     };
-    e.currentTarget.setPointerCapture(e.pointerId);
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Safe ignore if pointer capture isn't supported
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = dragRef.current;
     if (!d || d.pointerId !== e.pointerId) return;
-    const dy = d.startY - e.clientY;
-    if (Math.abs(dy) > 4) d.moved = true;
 
-    const now = performance.now();
-    const dt = Math.max(1, now - d.lastTime);
-    d.velocityY = (d.lastY - e.clientY) / dt; // positive = dragging up
-    d.lastY = e.clientY;
-    d.lastTime = now;
+    const dy = d.startY - e.clientY;
+    if (!d.moved && Math.abs(dy) < 3) return;
+    d.moved = true;
 
     const vh = window.innerHeight || 844;
-    const nextPx = Math.min(vh * 0.93, Math.max(138, d.startHeightPx + dy));
+    const minPx = Math.max(132, getSnapHeightPx('peek', vh) - 30);
+    const maxPx = Math.round(vh * 0.94);
+    const nextPx = Math.min(maxPx, Math.max(minPx, d.startHeightPx + dy));
+
+    d.currentHeightPx = nextPx;
     setDragHeightPx(nextPx);
   };
 
@@ -104,49 +111,49 @@ export function MobileBottomSheet() {
     if (!d || d.pointerId !== e.pointerId) return;
     dragRef.current = null;
 
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // Safe ignore
+    }
+
+    // Pressing/tapping without dragging does nothing
     if (!d.moved) {
       setDragHeightPx(null);
       return;
     }
 
     const vh = window.innerHeight || 844;
-    const finalPx = dragHeightPx ?? d.startHeightPx;
-    const ratio = finalPx / vh;
+    const finalPx = d.currentHeightPx;
 
-    // Velocity-aware snapping
-    let nextSnap: MobileSheetSnap = snap;
-    if (d.velocityY > 0.45) {
-      nextSnap = snap === 'peek' ? 'half' : 'full';
-    } else if (d.velocityY < -0.45) {
-      nextSnap = snap === 'full' ? 'half' : 'peek';
-    } else if (ratio < 0.33) {
-      nextSnap = 'peek';
-    } else if (ratio < 0.7) {
-      nextSnap = 'half';
-    } else {
-      nextSnap = 'full';
+    // Spring to whichever of the 3 snap positions (peek, half, full) is closest
+    let closestSnap: MobileSheetSnap = snap;
+    let smallestDist = Infinity;
+    for (const candidate of SNAP_ORDER) {
+      const dist = Math.abs(finalPx - getSnapHeightPx(candidate, vh));
+      if (dist < smallestDist) {
+        smallestDist = dist;
+        closestSnap = candidate;
+      }
     }
 
     setDragHeightPx(null);
-    setSnap(nextSnap);
+    setSnap(closestSnap);
   };
 
-  const cycleSnap = () => {
-    if (snap === 'peek') setSnap('half');
-    else if (snap === 'half') setSnap('full');
-    else setSnap('peek');
-  };
+  const isDragging = dragHeightPx !== null;
 
-  const sheetStyle: React.CSSProperties =
-    dragHeightPx !== null
-      ? { height: `${Math.round(dragHeightPx)}px`, transition: 'none' }
-      : {
-          height:
-            snap === 'peek'
-              ? 'max(162px, calc(18dvh + env(safe-area-inset-bottom)))'
-              : `${SNAP_HEIGHTS_VH[snap]}dvh`,
-          transition: 'height 300ms cubic-bezier(0.22, 1, 0.36, 1)',
-        };
+  const sheetStyle: React.CSSProperties = isDragging
+    ? { height: `${Math.round(dragHeightPx)}px`, transition: 'none' }
+    : {
+        height:
+          snap === 'peek'
+            ? 'max(162px, calc(18dvh + env(safe-area-inset-bottom)))'
+            : `${SNAP_HEIGHTS_VH[snap]}dvh`,
+        transition: 'height 380ms cubic-bezier(0.34, 1.16, 0.64, 1)',
+      };
 
   // Peek summary values when a route is active
   const firstTransit = transitPlan?.legs[0]?.alternatives[transitPlan.legs[0].selectedIndex];
@@ -155,12 +162,16 @@ export function MobileBottomSheet() {
       transitPlan.legs[transitPlan.legs.length - 1].selectedIndex
     ];
 
+  // Show full content when above peek OR while dragging up past peek so content reveals smoothly
+  const showBodyContent = snap !== 'peek' || (isDragging && dragHeightPx > 210);
+
   return (
     <div
+      ref={sheetRef}
       style={sheetStyle}
-      className="md:hidden fixed inset-x-0 bottom-0 z-20 flex flex-col rounded-t-[28px] bg-white/97 dark:bg-[#0f172a]/97 backdrop-blur-xl border-t-2 border-slate-200/90 dark:border-slate-700/80 shadow-[0_-12px_40px_rgba(15,23,42,0.22)] overflow-hidden"
+      className="md:hidden fixed inset-x-0 bottom-0 z-20 flex flex-col rounded-t-[28px] bg-white/97 dark:bg-[#0f172a]/97 backdrop-blur-xl border-t-2 border-slate-200/90 dark:border-slate-700/80 shadow-[0_-12px_40px_rgba(15,23,42,0.22)] overflow-hidden will-change-[height]"
     >
-      {/* Draggable Handle Zone */}
+      {/* Pure Drag-Only Handle & Header Zone */}
       <div
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -168,24 +179,26 @@ export function MobileBottomSheet() {
         onPointerCancel={handlePointerUp}
         className="touch-none select-none shrink-0"
       >
-        <button
-          type="button"
-          onClick={cycleSnap}
-          className="w-full pt-2.5 pb-1.5 flex items-center justify-center cursor-pointer"
-          aria-label="Resize bottom sheet"
+        {/* Pull Tab (drag-only — pressing/tapping does nothing) */}
+        <div
+          data-testid="sheet-pull-tab"
+          aria-label="Drag to resize bottom sheet"
+          className="w-full pt-3 pb-2.5 flex items-center justify-center cursor-grab active:cursor-grabbing"
         >
-          <span className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-        </button>
+          <span
+            className={`h-1.5 rounded-full transition-all duration-150 ${
+              isDragging
+                ? 'w-16 bg-[#0065ae] dark:bg-sky-400'
+                : 'w-12 bg-slate-300 dark:bg-slate-600'
+            }`}
+          />
+        </div>
 
         {/* Single-Sheet Swap Header OR Planner Header */}
         {!showingStation && !showingPin && (
           <div className="px-4 pb-2.5 space-y-2.5">
             <div className="flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={cycleSnap}
-                className="flex items-center gap-2 min-w-0 text-left cursor-pointer"
-              >
+              <div className="flex items-center gap-2 min-w-0 text-left">
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0065ae] to-[#00a984] flex items-center justify-center text-white shadow-sm shrink-0">
                   <Compass className="w-4.5 h-4.5" />
                 </div>
@@ -197,19 +210,15 @@ export function MobileBottomSheet() {
                     {t.appTagline}
                   </div>
                 </div>
-              </button>
+              </div>
 
               <TopBarControls />
             </div>
 
             {/* Peek Mode: ultra-glanceable active trip strip OR mode selector */}
-            {snap === 'peek' && hasRoute ? (
+            {!showBodyContent && hasRoute ? (
               <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-[#0065ae]/10 dark:bg-[#0065ae]/25 border border-[#0065ae]/25">
-                <button
-                  type="button"
-                  onClick={() => setSnap('half')}
-                  className="flex-1 min-w-0 text-left flex items-center gap-2 cursor-pointer"
-                >
+                <div className="flex-1 min-w-0 text-left flex items-center gap-2">
                   <div className="min-w-0">
                     <div className="text-base font-extrabold text-slate-900 dark:text-white tabular-nums leading-tight">
                       {mode === 'transit' && transitPlan
@@ -225,8 +234,7 @@ export function MobileBottomSheet() {
                       </div>
                     )}
                   </div>
-                  <ChevronUp className="w-4 h-4 text-slate-400 ml-auto shrink-0" />
-                </button>
+                </div>
 
                 <button
                   type="button"
@@ -254,7 +262,7 @@ export function MobileBottomSheet() {
       ) : showingPin ? (
         <MapClickCard variant="sheet" />
       ) : (
-        snap !== 'peek' && (
+        showBodyContent && (
           <div
             ref={scrollBodyRef}
             className="flex-1 overflow-y-auto px-4 pb-safe-lg space-y-3 border-t border-slate-100 dark:border-slate-800/80 pt-3"
