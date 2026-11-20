@@ -11,6 +11,7 @@ import { MapClickCard } from '@/components/map/MapClickCard';
 import { ModeSelector } from './ModeSelector';
 import { CompactTripBar, StopList } from './StopList';
 import { TransitOptionsBar } from './TransitOptionsBar';
+import { WalkOptionsBar } from './WalkOptionsBar';
 import { RouteResults } from './RouteResults';
 
 const SNAP_HEIGHTS_VH: Record<MobileSheetSnap, number> = {
@@ -260,7 +261,10 @@ export function MobileBottomSheet() {
           >
             {/* Compact trip summary bar when a route is active, or full StopList editor */}
             {hasRoute && !stopsEditing ? (
-              <CompactTripBar />
+              <div className="space-y-2">
+                <CompactTripBar />
+                {mode === 'foot' && <WalkOptionsBar />}
+              </div>
             ) : (
               <div className="space-y-2.5">
                 {hasRoute && stopsEditing && (
@@ -279,6 +283,7 @@ export function MobileBottomSheet() {
                 )}
                 <StopList />
                 {mode === 'transit' && <TransitOptionsBar />}
+                {mode === 'foot' && <WalkOptionsBar />}
               </div>
             )}
 

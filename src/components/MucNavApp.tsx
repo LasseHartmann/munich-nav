@@ -24,6 +24,7 @@ export function MucNavApp() {
   const departMode = useNavStore((s) => s.departMode);
   const departAtLocal = useNavStore((s) => s.departAtLocal);
   const transitFilters = useNavStore((s) => s.transitFilters);
+  const walkOptions = useNavStore((s) => s.walkOptions);
   const mapPickTargetUid = useNavStore((s) => s.mapPickTargetUid);
   const cancelMapPick = useNavStore((s) => s.cancelMapPick);
 
@@ -56,12 +57,22 @@ export function MucNavApp() {
       departMode,
       departAtLocal,
       transitFilters,
+      walkOptions,
     });
     const nextUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
     if (window.location.pathname + window.location.search !== nextUrl) {
       window.history.replaceState(null, '', nextUrl);
     }
-  }, [initialized, mode, mapStyle, waypoints, departMode, departAtLocal, transitFilters]);
+  }, [
+    initialized,
+    mode,
+    mapStyle,
+    waypoints,
+    departMode,
+    departAtLocal,
+    transitFilters,
+    walkOptions,
+  ]);
 
   return (
     <main className="relative w-full h-dvh overflow-hidden select-none">

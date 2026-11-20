@@ -8,6 +8,7 @@ import { TopBarControls } from '@/components/ui/TopBarControls';
 import { ModeSelector } from './ModeSelector';
 import { StopList } from './StopList';
 import { TransitOptionsBar } from './TransitOptionsBar';
+import { WalkOptionsBar } from './WalkOptionsBar';
 import { RouteResults } from './RouteResults';
 import { MobileBottomSheet } from './MobileBottomSheet';
 
@@ -73,6 +74,7 @@ export function PlannerPanel() {
               <ModeSelector />
               <StopList />
               {mode === 'transit' && <TransitOptionsBar />}
+              {mode === 'foot' && <WalkOptionsBar />}
             </div>
 
             {/* Scrollable Route Results */}

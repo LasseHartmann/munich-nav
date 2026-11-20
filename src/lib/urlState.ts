@@ -1,4 +1,10 @@
-import type { MapStyleMode, TransitFilterKey, TravelMode, Waypoint } from './types';
+import type {
+  MapStyleMode,
+  TransitFilterKey,
+  TravelMode,
+  WalkOptions,
+  Waypoint,
+} from './types';
 
 export interface ShareableRouteState {
   mode: TravelMode;
@@ -7,6 +13,7 @@ export interface ShareableRouteState {
   departMode: 'now' | 'departAt';
   departAtLocal: string;
   transitFilters: TransitFilterKey[];
+  walkOptions?: WalkOptions;
 }
 
 const VALID_MODES = new Set<TravelMode>(['transit', 'foot', 'bike', 'car']);
@@ -21,7 +28,6 @@ export function encodeRouteToQuery(state: ShareableRouteState): string {
 
   const filled = state.waypoints.filter((w) => w.place !== null);
   if (filled.length > 0) {
-    // Format each waypoint as lat~lon~dwell~encodedName~stopId
     const encodedStops = filled.map((w) => {
       const p = w.place!;
       const parts = [
@@ -44,6 +50,19 @@ export function encodeRouteToQuery(state: ShareableRouteState): string {
     params.set('tf', state.transitFilters.join(','));
   }
 
+  if (state.walkOptions) {
+    const wf: string[] = [];
+    if (state.walkOptions.preferGreen) wf.push('green');
+    if (state.walkOptions.preferQuiet) wf.push('quiet');
+    if (state.walkOptions.avoidSteps) wf.push('steps');
+    if (wf.length > 0) {
+      params.set('wf', wf.join(','));
+      if (state.walkOptions.intensity === 'strong') {
+        params.set('wi', 'strong');
+      }
+    }
+  }
+
   return params.toString();
 }
 
@@ -54,8 +73,10 @@ export function decodeRouteFromQuery(search: string): Partial<ShareableRouteStat
   const rawStops = params.get('s');
   const rawTime = params.get('t');
   const rawFilters = params.get('tf');
+  const rawWalkFilters = params.get('wf');
+  const rawWalkIntensity = params.get('wi');
 
-  if (!rawMode && !rawStops && !rawStyle) return null;
+  if (!rawMode && !rawStops && !rawStyle && !rawWalkFilters) return null;
 
   const result: Partial<ShareableRouteState> = {};
 
@@ -74,6 +95,15 @@ export function decodeRouteFromQuery(search: string): Partial<ShareableRouteStat
       .split(',')
       .filter((f): f is TransitFilterKey => VALID_FILTERS.has(f as TransitFilterKey));
     if (parsed.length > 0) result.transitFilters = parsed;
+  }
+  if (rawWalkFilters) {
+    const set = new Set(rawWalkFilters.split(','));
+    result.walkOptions = {
+      preferGreen: set.has('green'),
+      preferQuiet: set.has('quiet'),
+      avoidSteps: set.has('steps'),
+      intensity: rawWalkIntensity === 'strong' ? 'strong' : 'balanced',
+    };
   }
 
   if (rawStops) {

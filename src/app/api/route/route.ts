@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { decodePolylineToGeoJSON } from '@/lib/geo';
-import type { RoadManeuver, RoadRouteLeg, RoadRouteResult } from '@/lib/types';
+import type {
+  RoadManeuver,
+  RoadRouteLeg,
+  RoadRouteResult,
+  WalkMetrics,
+  WalkOptions,
+} from '@/lib/types';
 
 const USER_AGENT = 'MucNav/0.1 (Munich Multi-Stop Navigation Web App)';
 
@@ -10,6 +16,7 @@ interface RouteRequestBody {
   mode: RoadMode;
   waypoints: { lat: number; lon: number }[];
   lang?: 'en' | 'de';
+  walkOptions?: WalkOptions;
 }
 
 const ORS_PROFILES: Record<RoadMode, string> = {
@@ -24,11 +31,21 @@ const VALHALLA_COSTING: Record<RoadMode, string> = {
   foot: 'pedestrian',
 };
 
+interface OrsExtraSummaryItem {
+  value?: number;
+  distance?: number;
+  amount?: number;
+}
+
 interface OrsGeoJson {
   features?: {
     geometry?: { coordinates?: [number, number][] };
     properties?: {
       summary?: { distance?: number; duration?: number };
+      extras?: {
+        green?: { summary?: OrsExtraSummaryItem[] };
+        noise?: { summary?: OrsExtraSummaryItem[] };
+      };
       segments?: {
         distance?: number;
         duration?: number;
@@ -45,13 +62,74 @@ interface OrsGeoJson {
   }[];
 }
 
+/**
+ * Computes intuitive 0-100% green & quiet scores from ORS extra_info summaries.
+ * Empirically verified in Munich: ORS uses an inverted 0..10 cost index where
+ * values <= 7 represent green park/tree paths and quiet low-traffic streets,
+ * while 8..10 represent unshaded concrete / busy arterial roads.
+ */
+function parseOrsWalkMetrics(
+  extras?: NonNullable<NonNullable<OrsGeoJson['features']>[0]['properties']>['extras']
+): WalkMetrics | undefined {
+  const greenSummary = extras?.green?.summary;
+  const noiseSummary = extras?.noise?.summary;
+  if (!greenSummary?.length && !noiseSummary?.length) return undefined;
+
+  const greenAmount = (greenSummary || [])
+    .filter((item) => typeof item.value === 'number' && item.value <= 7)
+    .reduce((acc, item) => acc + (item.amount ?? 0), 0);
+
+  const quietAmount = (noiseSummary || [])
+    .filter((item) => typeof item.value === 'number' && item.value <= 7)
+    .reduce((acc, item) => acc + (item.amount ?? 0), 0);
+
+  return {
+    greenPercent: Math.min(100, Math.max(0, Math.round(greenAmount))),
+    quietPercent: Math.min(100, Math.max(0, Math.round(quietAmount))),
+  };
+}
+
 async function routeWithORS(
   mode: RoadMode,
   waypoints: { lat: number; lon: number }[],
   lang: 'en' | 'de',
-  apiKey: string
+  apiKey: string,
+  walkOptions?: WalkOptions
 ): Promise<RoadRouteResult> {
   const profile = ORS_PROFILES[mode];
+
+  const payload: Record<string, unknown> = {
+    coordinates: waypoints.map((w) => [w.lon, w.lat]),
+    language: lang,
+    instructions: true,
+    elevation: false,
+  };
+
+  if (mode === 'foot') {
+    payload.extra_info = ['green', 'noise'];
+
+    const options: Record<string, unknown> = {};
+    if (walkOptions) {
+      const strong = walkOptions.intensity === 'strong';
+      const weightings: Record<string, number> = {};
+      if (walkOptions.preferGreen) {
+        weightings.green = strong ? 0.95 : 0.65;
+      }
+      if (walkOptions.preferQuiet) {
+        weightings.quiet = strong ? 0.85 : 0.45;
+      }
+      if (Object.keys(weightings).length > 0) {
+        options.profile_params = { weightings };
+      }
+      if (walkOptions.avoidSteps) {
+        options.avoid_features = ['steps'];
+      }
+    }
+    if (Object.keys(options).length > 0) {
+      payload.options = options;
+    }
+  }
+
   const res = await fetch(`https://api.openrouteservice.org/v2/directions/${profile}/geojson`, {
     method: 'POST',
     headers: {
@@ -59,12 +137,7 @@ async function routeWithORS(
       'Content-Type': 'application/json',
       'User-Agent': USER_AGENT,
     },
-    body: JSON.stringify({
-      coordinates: waypoints.map((w) => [w.lon, w.lat]),
-      language: lang,
-      instructions: true,
-      elevation: false,
-    }),
+    body: JSON.stringify(payload),
     signal: AbortSignal.timeout(12000),
   });
 
@@ -77,6 +150,7 @@ async function routeWithORS(
   const feature = data.features?.[0];
   const allCoords = feature?.geometry?.coordinates || [];
   const segments = feature?.properties?.segments || [];
+  const walkMetrics = mode === 'foot' ? parseOrsWalkMetrics(feature?.properties?.extras) : undefined;
 
   const legs: RoadRouteLeg[] = segments.map((seg, idx) => {
     const steps = seg.steps || [];
@@ -117,6 +191,7 @@ async function routeWithORS(
       feature?.properties?.summary?.distance ?? legs.reduce((a, b) => a + b.distanceMeters, 0),
     totalDurationSeconds:
       feature?.properties?.summary?.duration ?? legs.reduce((a, b) => a + b.durationSeconds, 0),
+    walkMetrics,
     legs,
     coordinates: allCoords,
   };
@@ -144,22 +219,41 @@ interface ValhallaResponse {
 async function routeWithValhalla(
   mode: RoadMode,
   waypoints: { lat: number; lon: number }[],
-  lang: 'en' | 'de'
+  lang: 'en' | 'de',
+  walkOptions?: WalkOptions
 ): Promise<RoadRouteResult> {
+  const body: Record<string, unknown> = {
+    locations: waypoints.map((w) => ({ lat: w.lat, lon: w.lon, type: 'break' })),
+    costing: VALHALLA_COSTING[mode],
+    directions_options: {
+      units: 'kilometers',
+      language: lang === 'de' ? 'de-DE' : 'en-US',
+    },
+  };
+
+  if (mode === 'foot' && walkOptions) {
+    const ped: Record<string, number> = {};
+    const strong = walkOptions.intensity === 'strong';
+    if (walkOptions.preferGreen || walkOptions.preferQuiet) {
+      ped.walkway_factor = strong ? 0.4 : 0.65;
+      ped.use_roads = strong ? 0.05 : 0.18;
+      ped.sidewalk_factor = strong ? 1.5 : 1.25;
+    }
+    if (walkOptions.avoidSteps) {
+      ped.step_penalty = 180;
+    }
+    if (Object.keys(ped).length > 0) {
+      body.costing_options = { pedestrian: ped };
+    }
+  }
+
   const res = await fetch('https://valhalla1.openstreetmap.de/route', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'User-Agent': USER_AGENT,
     },
-    body: JSON.stringify({
-      locations: waypoints.map((w) => ({ lat: w.lat, lon: w.lon, type: 'break' })),
-      costing: VALHALLA_COSTING[mode],
-      directions_options: {
-        units: 'kilometers',
-        language: lang === 'de' ? 'de-DE' : 'en-US',
-      },
-    }),
+    body: JSON.stringify(body),
     signal: AbortSignal.timeout(14000),
   });
 
@@ -221,7 +315,7 @@ async function routeWithValhalla(
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as RouteRequestBody;
-    const { mode, waypoints, lang = 'en' } = body;
+    const { mode, waypoints, lang = 'en', walkOptions } = body;
 
     if (!mode || !['foot', 'bike', 'car'].includes(mode)) {
       return NextResponse.json({ error: 'Invalid travel mode' }, { status: 400 });
@@ -237,7 +331,7 @@ export async function POST(req: NextRequest) {
 
     if (orsKey) {
       try {
-        const orsResult = await routeWithORS(mode, waypoints, lang, orsKey);
+        const orsResult = await routeWithORS(mode, waypoints, lang, orsKey, walkOptions);
         return NextResponse.json(orsResult, {
           headers: { 'Cache-Control': 'private, max-age=60' },
         });
@@ -246,7 +340,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const valhallaResult = await routeWithValhalla(mode, waypoints, lang);
+    const valhallaResult = await routeWithValhalla(mode, waypoints, lang, walkOptions);
     return NextResponse.json(valhallaResult, {
       headers: { 'Cache-Control': 'private, max-age=60' },
     });

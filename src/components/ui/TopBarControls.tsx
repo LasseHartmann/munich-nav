@@ -17,6 +17,7 @@ export function TopBarControls() {
   const departMode = useNavStore((s) => s.departMode);
   const departAtLocal = useNavStore((s) => s.departAtLocal);
   const transitFilters = useNavStore((s) => s.transitFilters);
+  const walkOptions = useNavStore((s) => s.walkOptions);
 
   const t = getTranslations(lang);
   const [copied, setCopied] = useState(false);
@@ -29,6 +30,7 @@ export function TopBarControls() {
       departMode,
       departAtLocal,
       transitFilters,
+      walkOptions,
     });
     const url = `${window.location.origin}${window.location.pathname}${qs ? `?${qs}` : ''}`;
 

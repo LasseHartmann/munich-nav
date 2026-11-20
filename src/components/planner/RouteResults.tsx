@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import {
+  Accessibility,
   AlertCircle,
   ChevronDown,
   ChevronRight,
@@ -11,6 +12,8 @@ import {
   Navigation,
   Route,
   Sparkles,
+  Trees,
+  VolumeX,
 } from 'lucide-react';
 import {
   formatDistance,
@@ -280,6 +283,7 @@ function TransitSegmentRow({ segment }: { segment: TransitSegment }) {
 export function RouteResults() {
   const lang = useNavStore((s) => s.lang);
   const mode = useNavStore((s) => s.mode);
+  const walkOptions = useNavStore((s) => s.walkOptions);
   const waypoints = useNavStore((s) => s.waypoints);
   const roadRoute = useNavStore((s) => s.roadRoute);
   const transitPlan = useNavStore((s) => s.transitPlan);
@@ -551,6 +555,30 @@ export function RouteResults() {
               <span>{liveFollowActive ? t.liveFollowStop : t.liveFollowStart}</span>
             </button>
           </div>
+
+          {/* Live Walking Green / Quiet / Step-free Metrics */}
+          {mode === 'foot' && (roadRoute.walkMetrics || walkOptions.avoidSteps) && (
+            <div className="mt-2.5 pt-2.5 border-t border-white/15 flex items-center gap-2 flex-wrap">
+              {roadRoute.walkMetrics && (
+                <>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold tabular-nums bg-emerald-400 text-slate-950">
+                    <Trees className="w-3 h-3" />
+                    {roadRoute.walkMetrics.greenPercent}% {t.walkFilters.greenScore}
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold tabular-nums bg-white/20 text-white backdrop-blur-xs">
+                    <VolumeX className="w-3 h-3" />
+                    {roadRoute.walkMetrics.quietPercent}% {t.walkFilters.quietScore}
+                  </span>
+                </>
+              )}
+              {walkOptions.avoidSteps && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-white/20 text-white">
+                  <Accessibility className="w-3 h-3" />
+                  {t.walkFilters.stepFree}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Turn-by-turn legs */}

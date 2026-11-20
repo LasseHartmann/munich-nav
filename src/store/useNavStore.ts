@@ -26,6 +26,8 @@ import type {
   TransitFilterKey,
   TransitPlanResult,
   TravelMode,
+  WalkIntensity,
+  WalkOptions,
   Waypoint,
 } from '@/lib/types';
 
@@ -43,6 +45,13 @@ function createInitialWaypoints(): Waypoint[] {
 }
 
 const ALL_TRANSIT_FILTERS: TransitFilterKey[] = ['SUBWAY', 'SUBURBAN', 'TRAM', 'BUS', 'REGIONAL'];
+
+const DEFAULT_WALK_OPTIONS: WalkOptions = {
+  preferGreen: false,
+  preferQuiet: false,
+  avoidSteps: false,
+  intensity: 'balanced',
+};
 
 /** Convert a YYYY-MM-DDTHH:mm string representing Europe/Berlin local time into an ISO UTC timestamp. */
 function berlinLocalToIso(localVal: string): string {
@@ -103,6 +112,7 @@ interface NavStore {
   departMode: 'now' | 'departAt';
   departAtLocal: string;
   transitFilters: TransitFilterKey[];
+  walkOptions: WalkOptions;
   selectedTransitAlternatives: Record<number, number>;
 
   roadRoute: RoadRouteResult | null;
@@ -160,6 +170,8 @@ interface NavStore {
   setDepartMode: (dm: 'now' | 'departAt') => void;
   setDepartAtLocal: (val: string) => void;
   toggleTransitFilter: (key: TransitFilterKey) => void;
+  toggleWalkOption: (key: 'preferGreen' | 'preferQuiet' | 'avoidSteps') => void;
+  setWalkIntensity: (intensity: WalkIntensity) => void;
   selectTransitAlternative: (legIndex: number, altIndex: number) => void;
 
   calculateRoute: (overrideAlts?: Record<number, number>) => Promise<void>;
@@ -192,6 +204,7 @@ export const useNavStore = create<NavStore>((set, get) => ({
   departMode: 'now',
   departAtLocal: toLocalDateTimeInputValue(),
   transitFilters: [...ALL_TRANSIT_FILTERS],
+  walkOptions: { ...DEFAULT_WALK_OPTIONS },
   selectedTransitAlternatives: {},
 
   roadRoute: null,
@@ -248,6 +261,7 @@ export const useNavStore = create<NavStore>((set, get) => ({
       ...(fromUrl?.departMode ? { departMode: fromUrl.departMode } : {}),
       ...(fromUrl?.departAtLocal ? { departAtLocal: fromUrl.departAtLocal } : {}),
       ...(fromUrl?.transitFilters ? { transitFilters: fromUrl.transitFilters } : {}),
+      ...(fromUrl?.walkOptions ? { walkOptions: fromUrl.walkOptions } : {}),
     });
 
     if (hasUrlRoute) {
@@ -575,6 +589,33 @@ export const useNavStore = create<NavStore>((set, get) => ({
     }
   },
 
+  toggleWalkOption: (key) => {
+    set((s) => ({
+      walkOptions: {
+        ...s.walkOptions,
+        [key]: !s.walkOptions[key],
+      },
+      highlighted: null,
+    }));
+    if (get().mode === 'foot' && get().waypoints.filter((w) => w.place).length >= 2) {
+      void get().calculateRoute();
+    }
+  },
+
+  setWalkIntensity: (intensity) => {
+    if (get().walkOptions.intensity === intensity) return;
+    set((s) => ({
+      walkOptions: {
+        ...s.walkOptions,
+        intensity,
+      },
+      highlighted: null,
+    }));
+    if (get().mode === 'foot' && get().waypoints.filter((w) => w.place).length >= 2) {
+      void get().calculateRoute();
+    }
+  },
+
   selectTransitAlternative: (legIndex, altIndex) => {
     const prev = get().selectedTransitAlternatives;
     const next: Record<number, number> = {};
@@ -652,6 +693,7 @@ export const useNavStore = create<NavStore>((set, get) => ({
             mode: state.mode,
             waypoints: filled.map((w) => ({ lat: w.place!.lat, lon: w.place!.lon })),
             lang: state.lang,
+            walkOptions: state.mode === 'foot' ? state.walkOptions : undefined,
           }),
         });
 

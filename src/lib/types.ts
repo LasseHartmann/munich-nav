@@ -5,6 +5,20 @@ export type Language = 'en' | 'de';
 
 export type TransitFilterKey = 'SUBWAY' | 'SUBURBAN' | 'TRAM' | 'BUS' | 'REGIONAL';
 
+export type WalkIntensity = 'balanced' | 'strong';
+
+export interface WalkOptions {
+  preferGreen: boolean;
+  preferQuiet: boolean;
+  avoidSteps: boolean;
+  intensity: WalkIntensity;
+}
+
+export interface WalkMetrics {
+  greenPercent: number;
+  quietPercent: number;
+}
+
 export interface PlaceResult {
   id: string;
   name: string;
@@ -49,6 +63,7 @@ export interface RoadRouteResult {
   calculatedAt?: string;
   totalDistanceMeters: number;
   totalDurationSeconds: number;
+  walkMetrics?: WalkMetrics;
   legs: RoadRouteLeg[];
   coordinates: [number, number][]; // full combined [lon, lat][]
 }
