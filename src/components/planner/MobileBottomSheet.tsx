@@ -56,14 +56,16 @@ export function MobileBottomSheet() {
     }
   }, [transitPlan, roadRoute]);
 
-  // Pure drag-only bottom sheet state (tapping/pressing the pull tab does nothing)
+  // Pure drag-only bottom sheet state with momentum-projected snapping (tapping/pressing does nothing)
   const [dragHeightPx, setDragHeightPx] = useState<number | null>(null);
+  const [springDurationMs, setSpringDurationMs] = useState(360);
   const dragRef = useRef<{
     pointerId: number;
     startY: number;
     startHeightPx: number;
     currentHeightPx: number;
     moved: boolean;
+    samples: { y: number; t: number }[];
   } | null>(null);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -73,6 +75,7 @@ export function MobileBottomSheet() {
     const vh = window.innerHeight || 844;
     const measuredHeight =
       sheetRef.current?.getBoundingClientRect().height ?? getSnapHeightPx(snap, vh);
+    const now = performance.now();
 
     dragRef.current = {
       pointerId: e.pointerId,
@@ -80,6 +83,7 @@ export function MobileBottomSheet() {
       startHeightPx: measuredHeight,
       currentHeightPx: measuredHeight,
       moved: false,
+      samples: [{ y: e.clientY, t: now }],
     };
 
     try {
@@ -96,6 +100,13 @@ export function MobileBottomSheet() {
     const dy = d.startY - e.clientY;
     if (!d.moved && Math.abs(dy) < 3) return;
     d.moved = true;
+
+    const now = performance.now();
+    d.samples.push({ y: e.clientY, t: now });
+    // Keep only recent samples within the last 110ms for clean, jitter-free release velocity
+    while (d.samples.length > 2 && now - d.samples[0].t > 110) {
+      d.samples.shift();
+    }
 
     const vh = window.innerHeight || 844;
     const minPx = Math.max(132, getSnapHeightPx('peek', vh) - 30);
@@ -127,18 +138,40 @@ export function MobileBottomSheet() {
 
     const vh = window.innerHeight || 844;
     const finalPx = d.currentHeightPx;
+    const now = performance.now();
 
-    // Spring to whichever of the 3 snap positions (peek, half, full) is closest
+    // Compute smooth release velocity (px/ms; positive = flicking UP, negative = flicking DOWN)
+    let velocityPxPerMs = 0;
+    const latest = d.samples[d.samples.length - 1];
+    // If finger paused for >90ms before releasing, treat as deliberate placement (zero momentum)
+    if (latest && now - latest.t <= 90 && d.samples.length >= 2) {
+      const oldest = d.samples[0];
+      const dt = Math.max(16, latest.t - oldest.t);
+      velocityPxPerMs = (oldest.y - latest.y) / dt;
+    }
+
+    // Project where the sheet would naturally coast with momentum (~220ms coast window)
+    const minPx = getSnapHeightPx('peek', vh);
+    const maxPx = getSnapHeightPx('full', vh);
+    const projectedPx = Math.min(
+      maxPx,
+      Math.max(minPx, finalPx + velocityPxPerMs * 220)
+    );
+
+    // Spring to whichever of the 3 snap positions (peek, half, full) is closest to the momentum projection
     let closestSnap: MobileSheetSnap = snap;
     let smallestDist = Infinity;
     for (const candidate of SNAP_ORDER) {
-      const dist = Math.abs(finalPx - getSnapHeightPx(candidate, vh));
+      const dist = Math.abs(projectedPx - getSnapHeightPx(candidate, vh));
       if (dist < smallestDist) {
         smallestDist = dist;
         closestSnap = candidate;
       }
     }
 
+    // Faster flicks snap crisply; gentle releases settle smoothly
+    const dynamicMs = Math.max(240, Math.min(390, Math.round(375 - Math.abs(velocityPxPerMs) * 65)));
+    setSpringDurationMs(dynamicMs);
     setDragHeightPx(null);
     setSnap(closestSnap);
   };
@@ -152,7 +185,7 @@ export function MobileBottomSheet() {
           snap === 'peek'
             ? 'max(162px, calc(18dvh + env(safe-area-inset-bottom)))'
             : `${SNAP_HEIGHTS_VH[snap]}dvh`,
-        transition: 'height 380ms cubic-bezier(0.34, 1.16, 0.64, 1)',
+        transition: `height ${springDurationMs}ms cubic-bezier(0.34, 1.16, 0.64, 1)`,
       };
 
   // Peek summary values when a route is active
