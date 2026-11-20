@@ -2,8 +2,8 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-jakarta);
+  --font-mono: var(--font-jetbrains);
 }
 
 html,
@@ -11,19 +11,39 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Refine MapLibre native controls to blend with MucNav panels */
+/* Safe-area helpers for notched phones & PWA standalone mode */
+.pt-safe {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.pb-safe-lg {
+  padding-bottom: max(1.25rem, calc(env(safe-area-inset-bottom) + 0.75rem));
+}
+
+/* Tabular numbers for clocks, countdowns, and distances */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Refine MapLibre native controls to blend with Citymapper-style MucNav surfaces */
 .maplibregl-ctrl-group {
-  border-radius: 12px !important;
+  border-radius: 14px !important;
   overflow: hidden;
-  border: 1px solid rgba(148, 163, 184, 0.35) !important;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14) !important;
+  border: 1.5px solid rgba(148, 163, 184, 0.35) !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16) !important;
 }
 
 .dark .maplibregl-ctrl-group {
-  background-color: rgba(15, 23, 42, 0.92) !important;
-  border-color: rgba(51, 65, 85, 0.85) !important;
+  background-color: rgba(15, 23, 42, 0.94) !important;
+  border-color: rgba(51, 65, 85, 0.9) !important;
 }
 
 .dark .maplibregl-ctrl-group button {
@@ -31,7 +51,7 @@ body {
 }
 
 .dark .maplibregl-ctrl-attrib {
-  background-color: rgba(15, 23, 42, 0.78) !important;
+  background-color: rgba(15, 23, 42, 0.8) !important;
   color: #cbd5e1 !important;
 }
 
@@ -42,18 +62,36 @@ body {
 /* Keep MapLibre attribution cleanly to the right of the floating desktop sidebar */
 @media (min-width: 768px) {
   .maplibregl-ctrl-attrib {
-    max-width: calc(100vw - 460px) !important;
+    max-width: calc(100vw - 468px) !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 }
 
-/* Mobile spacing so bottom-right map controls stay above the collapsed mobile sheet */
+/* Mobile: rely on native pinch-to-zoom & place compact attribution discreetly at top-left below safe area */
 @media (max-width: 767px) {
-  .maplibregl-ctrl-bottom-right {
-    bottom: 132px !important;
+  .maplibregl-ctrl-group {
+    display: none !important;
   }
+  .maplibregl-ctrl-bottom-right {
+    bottom: auto !important;
+    top: max(0.65rem, env(safe-area-inset-top)) !important;
+    right: 0.65rem !important;
+  }
+  .maplibregl-ctrl-attrib {
+    font-size: 10px !important;
+    opacity: 0.8;
+  }
+}
+
+/* Hide horizontal scrollbar on pill strips while preserving smooth touch scroll */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Clean thin scrollbars */

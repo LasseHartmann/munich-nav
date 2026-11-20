@@ -5,12 +5,12 @@ import { useNavStore } from '@/store/useNavStore';
 import { getTranslations } from '@/lib/i18n';
 import type { TransitFilterKey } from '@/lib/types';
 
-const FILTER_PILLS: { key: TransitFilterKey; dotColor: string }[] = [
-  { key: 'SUBWAY', dotColor: '#0065ae' },
-  { key: 'SUBURBAN', dotColor: '#008e4e' },
-  { key: 'TRAM', dotColor: '#e30613' },
-  { key: 'BUS', dotColor: '#00586a' },
-  { key: 'REGIONAL', dotColor: '#1e3a8a' },
+const FILTER_PILLS: { key: TransitFilterKey; activeBg: string; dotColor: string }[] = [
+  { key: 'SUBWAY', activeBg: '#0065ae', dotColor: '#0065ae' },
+  { key: 'SUBURBAN', activeBg: '#008e4e', dotColor: '#008e4e' },
+  { key: 'TRAM', activeBg: '#e30613', dotColor: '#e30613' },
+  { key: 'BUS', activeBg: '#00586a', dotColor: '#00586a' },
+  { key: 'REGIONAL', activeBg: '#1e3a8a', dotColor: '#1e3a8a' },
 ];
 
 export function TransitOptionsBar() {
@@ -25,17 +25,17 @@ export function TransitOptionsBar() {
   const t = getTranslations(lang);
 
   return (
-    <div className="space-y-2 pt-1">
+    <div className="space-y-2 pt-0.5">
       {/* Departure time selector */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <div className="inline-flex items-center rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 text-[11px] font-medium border border-slate-200/70 dark:border-slate-700">
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="inline-flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-1 text-xs font-bold border border-slate-200/80 dark:border-slate-700">
           <button
             type="button"
             onClick={() => setDepartMode('now')}
-            className={`px-2 py-1 rounded-md transition-colors cursor-pointer ${
+            className={`px-3 py-1.5 md:py-1 rounded-lg transition-all cursor-pointer ${
               departMode === 'now'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             {t.leaveNow}
@@ -43,13 +43,13 @@ export function TransitOptionsBar() {
           <button
             type="button"
             onClick={() => setDepartMode('departAt')}
-            className={`px-2 py-1 rounded-md transition-colors cursor-pointer inline-flex items-center gap-1 ${
+            className={`px-3 py-1.5 md:py-1 rounded-lg transition-all cursor-pointer inline-flex items-center gap-1.5 ${
               departMode === 'departAt'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Clock className="w-3 h-3" />
+            <Clock className="w-3.5 h-3.5" />
             {t.departAt}
           </button>
         </div>
@@ -59,30 +59,33 @@ export function TransitOptionsBar() {
             type="datetime-local"
             value={departAtLocal}
             onChange={(e) => setDepartAtLocal(e.target.value)}
-            className="text-xs px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0065ae]/40"
+            className="text-base md:text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0065ae]/40"
           />
         )}
       </div>
 
-      {/* MVV Mode Filter Chips */}
-      <div className="flex items-center gap-1 flex-wrap">
-        {FILTER_PILLS.map(({ key, dotColor }) => {
+      {/* Chunky MVV Mode Filter Pills */}
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+        {FILTER_PILLS.map(({ key, activeBg, dotColor }) => {
           const enabled = transitFilters.includes(key);
           return (
             <button
               key={key}
               type="button"
               onClick={() => toggleTransitFilter(key)}
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-all cursor-pointer ${
+              style={enabled ? { backgroundColor: activeBg, borderColor: activeBg } : undefined}
+              className={`inline-flex items-center gap-1.5 h-8 md:h-7 px-2.5 rounded-full text-xs md:text-[11px] font-bold border transition-all active:scale-95 shrink-0 cursor-pointer ${
                 enabled
-                  ? 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-100 shadow-2xs'
-                  : 'bg-slate-100/70 dark:bg-slate-900/50 border-transparent text-slate-400 dark:text-slate-500 line-through'
+                  ? 'text-white shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 line-through'
               }`}
             >
-              <span
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: enabled ? dotColor : '#94a3b8' }}
-              />
+              {!enabled && (
+                <span
+                  className="w-2 h-2 rounded-full shrink-0 opacity-45"
+                  style={{ backgroundColor: dotColor }}
+                />
+              )}
               {t.transitFilters[key]}
             </button>
           );

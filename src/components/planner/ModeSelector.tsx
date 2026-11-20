@@ -8,12 +8,28 @@ import type { TravelMode } from '@/lib/types';
 const MODE_META: {
   id: TravelMode;
   icon: typeof TrainFront;
-  activeBg: string;
+  activeClass: string;
 }[] = [
-  { id: 'transit', icon: TrainFront, activeBg: 'bg-[#0065ae] text-white shadow-sm' },
-  { id: 'foot', icon: Footprints, activeBg: 'bg-teal-600 text-white shadow-sm' },
-  { id: 'bike', icon: Bike, activeBg: 'bg-emerald-600 text-white shadow-sm' },
-  { id: 'car', icon: Car, activeBg: 'bg-blue-600 text-white shadow-sm' },
+  {
+    id: 'transit',
+    icon: TrainFront,
+    activeClass: 'bg-[#0065ae] text-white shadow-md shadow-[#0065ae]/30',
+  },
+  {
+    id: 'foot',
+    icon: Footprints,
+    activeClass: 'bg-teal-600 text-white shadow-md shadow-teal-600/30',
+  },
+  {
+    id: 'bike',
+    icon: Bike,
+    activeClass: 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30',
+  },
+  {
+    id: 'car',
+    icon: Car,
+    activeClass: 'bg-blue-600 text-white shadow-md shadow-blue-600/30',
+  },
 ];
 
 export function ModeSelector() {
@@ -26,9 +42,9 @@ export function ModeSelector() {
     <div
       role="tablist"
       aria-label="Travel mode"
-      className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/70"
+      className="grid grid-cols-4 gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80"
     >
-      {MODE_META.map(({ id, icon: Icon, activeBg }) => {
+      {MODE_META.map(({ id, icon: Icon, activeClass }) => {
         const active = mode === id;
         return (
           <button
@@ -37,13 +53,13 @@ export function ModeSelector() {
             role="tab"
             aria-selected={active}
             onClick={() => setMode(id)}
-            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`flex items-center justify-center gap-1.5 h-10 md:h-9 px-2 rounded-xl text-xs font-extrabold tracking-tight transition-all active:scale-[0.97] cursor-pointer ${
               active
-                ? activeBg
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700/60'
+                ? activeClass
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/80 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700/70'
             }`}
           >
-            <Icon className="w-3.5 h-3.5 shrink-0" />
+            <Icon className="w-4 h-4 md:w-3.5 md:h-3.5 shrink-0" />
             <span className="truncate">{t.modes[id]}</span>
           </button>
         );

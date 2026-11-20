@@ -31,6 +31,17 @@ export function TopBarControls() {
       transitFilters,
     });
     const url = `${window.location.origin}${window.location.pathname}${qs ? `?${qs}` : ''}`;
+
+    // Use native Web Share API on mobile when available, else clipboard
+    if (typeof navigator !== 'undefined' && navigator.share && window.innerWidth < 768) {
+      try {
+        await navigator.share({ title: 'MucNav Munich Route', url });
+        return;
+      } catch {
+        // User cancelled or unsupported — fall through to clipboard
+      }
+    }
+
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -43,19 +54,18 @@ export function TopBarControls() {
   };
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1">
       <button
         type="button"
         onClick={handleShare}
         title={t.shareLink}
-        className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+        aria-label={t.shareLink}
+        className="inline-flex items-center justify-center gap-1 h-9 min-w-[36px] px-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200/80 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 active:scale-95 transition-all cursor-pointer"
       >
         {copied ? (
           <>
             <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-emerald-600 dark:text-emerald-400 hidden sm:inline">
-              {t.linkCopied}
-            </span>
+            <span className="text-emerald-600 dark:text-emerald-400">{t.linkCopied}</span>
           </>
         ) : (
           <>
@@ -68,7 +78,7 @@ export function TopBarControls() {
       <button
         type="button"
         onClick={() => setLang(lang === 'en' ? 'de' : 'en')}
-        className="rounded-lg px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+        className="h-9 min-w-[36px] px-2 rounded-xl text-xs font-extrabold uppercase tracking-wide bg-slate-100 hover:bg-slate-200/80 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 active:scale-95 transition-all cursor-pointer"
         title="Switch language (EN / DE)"
       >
         {lang === 'en' ? 'DE' : 'EN'}
@@ -77,11 +87,15 @@ export function TopBarControls() {
       <button
         type="button"
         onClick={toggleTheme}
-        className="rounded-lg p-1.5 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+        className="h-9 w-9 rounded-xl inline-flex items-center justify-center bg-slate-100 hover:bg-slate-200/80 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 active:scale-95 transition-all cursor-pointer"
         title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
         aria-label="Toggle color theme"
       >
-        {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+        {theme === 'dark' ? (
+          <Sun className="w-4 h-4 text-amber-400" />
+        ) : (
+          <Moon className="w-4 h-4 text-slate-700" />
+        )}
       </button>
     </div>
   );

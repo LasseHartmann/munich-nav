@@ -17,10 +17,12 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
+  ArrowRight,
   ArrowUpDown,
   Clock,
   GripVertical,
   Loader2,
+  Pencil,
   Plus,
   Sparkles,
   Trash2,
@@ -78,31 +80,32 @@ function SortableStopRow({ waypoint, index, total, isTransit }: SortableStopRowP
           type="button"
           {...attributes}
           {...listeners}
-          className="p-0.5 text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0 touch-none"
+          className="w-7 h-10 md:w-5 md:h-8 flex items-center justify-center text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0 touch-none"
           aria-label="Reorder stop"
         >
-          <GripVertical className="w-3.5 h-3.5" />
+          <GripVertical className="w-4 h-4 md:w-3.5 md:h-3.5" />
         </button>
 
         {/* Stop marker badge */}
-        <div className="w-5 flex flex-col items-center shrink-0">
+        <div className="w-6 flex flex-col items-center shrink-0">
           {isStart ? (
-            <span className="w-4 h-4 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25 text-[9px] font-bold text-white flex items-center justify-center">
+            <span className="w-5 h-5 rounded-full bg-emerald-500 ring-2 ring-emerald-500/25 text-[10px] font-extrabold text-white flex items-center justify-center shadow-2xs">
               A
             </span>
           ) : isEnd ? (
-            <span className="w-4 h-4 rounded-full bg-rose-500 ring-2 ring-rose-500/25 text-[9px] font-bold text-white flex items-center justify-center">
+            <span className="w-5 h-5 rounded-full bg-rose-500 ring-2 ring-rose-500/25 text-[10px] font-extrabold text-white flex items-center justify-center shadow-2xs">
               B
             </span>
           ) : (
-            <span className="w-4 h-4 rounded-full bg-amber-500 ring-2 ring-amber-500/25 text-[9px] font-bold text-white flex items-center justify-center">
+            <span className="w-5 h-5 rounded-full bg-amber-500 ring-2 ring-amber-500/25 text-[10px] font-extrabold text-white flex items-center justify-center shadow-2xs">
               {index}
             </span>
           )}
         </div>
 
-        {/* Search input */}
+        {/* Search input (Full-screen modal trigger on phone, inline dropdown on desktop) */}
         <PlaceSearchInput
+          waypointUid={waypoint.uid}
           value={waypoint.place}
           placeholder={placeholder}
           onSelect={(place) => setWaypointPlace(waypoint.uid, place)}
@@ -113,20 +116,23 @@ function SortableStopRow({ waypoint, index, total, isTransit }: SortableStopRowP
           <button
             type="button"
             onClick={() => removeWaypoint(waypoint.uid)}
-            className="p-1 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer shrink-0"
+            className="w-9 h-10 md:w-7 md:h-8 rounded-xl inline-flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 active:scale-90 transition-all cursor-pointer shrink-0"
             title="Remove stop"
             aria-label="Remove stop"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
       {/* Intermediate stop stay/dwell duration selector (for public transport chaining!) */}
       {isIntermediate && isTransit && (
-        <div className="ml-11 mt-1 mb-0.5 flex items-center gap-1 flex-wrap" title={t.dwellTooltip}>
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
-            <Clock className="w-3 h-3" />
+        <div
+          className="ml-12 mt-1.5 mb-0.5 flex items-center gap-1.5 flex-wrap"
+          title={t.dwellTooltip}
+        >
+          <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-amber-700 dark:text-amber-400">
+            <Clock className="w-3.5 h-3.5" />
             {t.dwellLabel}:
           </span>
           {DWELL_PRESETS.map((mins) => {
@@ -136,10 +142,10 @@ function SortableStopRow({ waypoint, index, total, isTransit }: SortableStopRowP
                 key={mins}
                 type="button"
                 onClick={() => setWaypointDwell(waypoint.uid, mins)}
-                className={`px-1.5 py-0.5 rounded-md text-[10px] font-semibold transition-colors cursor-pointer ${
+                className={`h-8 md:h-6 px-2.5 md:px-2 rounded-lg text-xs md:text-[11px] font-extrabold transition-all active:scale-95 cursor-pointer ${
                   active
-                    ? 'bg-amber-500 text-white shadow-2xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    ? 'bg-amber-500 text-white shadow-xs'
+                    : 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 hover:bg-amber-100 dark:hover:bg-amber-900/50'
                 }`}
               >
                 {mins}m
@@ -154,11 +160,67 @@ function SortableStopRow({ waypoint, index, total, isTransit }: SortableStopRowP
             value={waypoint.dwellMinutes}
             onChange={(e) => setWaypointDwell(waypoint.uid, Number(e.target.value) || 0)}
             aria-label={t.dwellLabel}
-            className="w-12 px-1.5 py-0.5 text-[10px] font-semibold text-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-amber-500"
+            className="w-14 md:w-12 h-8 md:h-6 px-1.5 text-base md:text-[11px] font-bold text-center tabular-nums rounded-lg border border-amber-300/80 dark:border-amber-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
-          <span className="text-[10px] text-slate-400">{t.dwellMinutes}</span>
+          <span className="text-[11px] font-semibold text-slate-400">{t.dwellMinutes}</span>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Compact single-card summary of active stops shown on phones so route results get prime space */
+export function CompactTripBar() {
+  const waypoints = useNavStore((s) => s.waypoints);
+  const mode = useNavStore((s) => s.mode);
+  const lang = useNavStore((s) => s.lang);
+  const setMobileStopsEditing = useNavStore((s) => s.setMobileStopsEditing);
+  const setMobileSheetSnap = useNavStore((s) => s.setMobileSheetSnap);
+  const t = getTranslations(lang);
+
+  const filled = waypoints.filter((w) => w.place !== null);
+  if (filled.length < 2) return null;
+
+  return (
+    <div className="flex items-center gap-2 p-2.5 rounded-2xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80">
+      <div className="flex-1 min-w-0 flex items-center flex-wrap gap-x-1.5 gap-y-1">
+        {filled.map((w, idx) => {
+          const isStart = idx === 0;
+          const isEnd = idx === filled.length - 1;
+          const dotColor = isStart ? 'bg-emerald-500' : isEnd ? 'bg-rose-500' : 'bg-amber-500';
+          const label = isStart ? 'A' : isEnd ? 'B' : String(idx);
+          return (
+            <div key={w.uid} className="inline-flex items-center gap-1 max-w-full">
+              <span
+                className={`w-4.5 h-4.5 rounded-full ${dotColor} text-[9px] font-extrabold text-white inline-flex items-center justify-center shrink-0`}
+              >
+                {label}
+              </span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-100 max-w-[130px] truncate">
+                {w.place!.name}
+              </span>
+              {!isStart && !isEnd && mode === 'transit' && w.dwellMinutes > 0 && (
+                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 shrink-0">
+                  +{w.dwellMinutes}m
+                </span>
+              )}
+              {!isEnd && <ArrowRight className="w-3 h-3 text-slate-400 shrink-0" />}
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          setMobileStopsEditing(true);
+          setMobileSheetSnap('full');
+        }}
+        className="inline-flex items-center gap-1 h-9 px-3 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-xs font-extrabold text-[#0065ae] dark:text-sky-300 shadow-2xs active:scale-95 shrink-0 cursor-pointer"
+      >
+        <Pencil className="w-3.5 h-3.5" />
+        <span>{t.editStops}</span>
+      </button>
     </div>
   );
 }
@@ -180,7 +242,7 @@ export function StopList() {
   const canOptimize = !isTransit && filledCount >= 4;
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -216,7 +278,7 @@ export function StopList() {
             type="button"
             onClick={() => addIntermediateStop(null)}
             disabled={waypoints.length >= 10}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-[#0065ae] dark:text-sky-400 bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/60 dark:hover:bg-sky-900/60 border border-sky-200/70 dark:border-sky-800/70 transition-colors cursor-pointer disabled:opacity-40"
+            className="inline-flex items-center gap-1 h-9 md:h-8 px-3 rounded-xl text-xs font-extrabold text-[#0065ae] dark:text-sky-300 bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/70 dark:hover:bg-sky-900/70 border border-sky-200 dark:border-sky-800/80 active:scale-95 transition-all cursor-pointer disabled:opacity-40"
           >
             <Plus className="w-3.5 h-3.5" />
             {t.addStop}
@@ -226,10 +288,10 @@ export function StopList() {
             type="button"
             onClick={reverseWaypoints}
             title={t.reverseRoute}
-            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 h-9 md:h-8 px-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 active:scale-95 transition-all cursor-pointer"
           >
             <ArrowUpDown className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{t.reverseRoute}</span>
+            <span>{t.reverseRoute}</span>
           </button>
 
           {canOptimize && (
@@ -237,7 +299,7 @@ export function StopList() {
               type="button"
               onClick={() => void optimizeStopOrder()}
               disabled={isOptimizing}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-violet-700 dark:text-violet-300 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/60 dark:hover:bg-violet-900/60 border border-violet-200/80 dark:border-violet-800/70 transition-colors cursor-pointer disabled:opacity-60"
+              className="inline-flex items-center gap-1 h-9 md:h-8 px-3 rounded-xl text-xs font-extrabold text-white bg-violet-600 hover:bg-violet-700 shadow-sm shadow-violet-600/25 active:scale-95 transition-all cursor-pointer disabled:opacity-60"
             >
               {isOptimizing ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -253,9 +315,9 @@ export function StopList() {
           <button
             type="button"
             onClick={clearRoute}
-            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:text-slate-400 dark:hover:text-rose-400 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 h-9 md:h-8 px-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:text-slate-400 dark:hover:text-rose-400 dark:hover:bg-rose-950/40 active:scale-95 transition-all cursor-pointer"
           >
-            <Trash2 className="w-3 h-3" />
+            <Trash2 className="w-3.5 h-3.5" />
             {t.clearRoute}
           </button>
         )}

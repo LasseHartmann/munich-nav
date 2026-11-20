@@ -29,6 +29,8 @@ import type {
   Waypoint,
 } from '@/lib/types';
 
+export type MobileSheetSnap = 'peek' | 'half' | 'full';
+
 function makeUid(): string {
   return `wp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -50,7 +52,6 @@ function berlinLocalToIso(localVal: string): string {
   const [hh, mm] = timePart.split(':').map(Number);
   if (!y || !m || !d) return new Date().toISOString();
 
-  // Compute Europe/Berlin UTC offset at roughly this date
   const roughUtc = new Date(Date.UTC(y, m - 1, d, hh || 0, mm || 0));
   const berlinParts = new Intl.DateTimeFormat('sv-SE', {
     timeZone: 'Europe/Berlin',
@@ -114,6 +115,12 @@ interface NavStore {
   selectedStation: MapStation | null;
   mapClickPin: MapClickPinState | null;
 
+  // Mobile-first UX state
+  mobileSheetSnap: MobileSheetSnap;
+  mobileStopsEditing: boolean;
+  mobileSearchTargetUid: string | null;
+  mapPickTargetUid: string | null;
+
   favorites: SavedPlace[];
   recents: PlaceResult[];
 
@@ -131,6 +138,14 @@ interface NavStore {
   toggleTheme: () => void;
   setLang: (lang: Language) => void;
   toggleShowStations: () => void;
+
+  setMobileSheetSnap: (snap: MobileSheetSnap) => void;
+  setMobileStopsEditing: (editing: boolean) => void;
+  openMobileSearch: (uid: string) => void;
+  closeMobileSearch: () => void;
+  startMapPickForWaypoint: (uid: string) => void;
+  cancelMapPick: () => void;
+  completeMapPick: (lat: number, lon: number) => Promise<void>;
 
   setWaypointPlace: (uid: string, place: PlaceResult | null) => void;
   setWaypointDwell: (uid: string, minutes: number) => void;
@@ -189,6 +204,11 @@ export const useNavStore = create<NavStore>((set, get) => ({
   selectedStation: null,
   mapClickPin: null,
 
+  mobileSheetSnap: 'half',
+  mobileStopsEditing: true,
+  mobileSearchTargetUid: null,
+  mapPickTargetUid: null,
+
   favorites: [],
   recents: [],
 
@@ -211,6 +231,9 @@ export const useNavStore = create<NavStore>((set, get) => ({
     const recents = loadRecents();
 
     const fromUrl = decodeRouteFromQuery(window.location.search);
+    const hasUrlRoute = Boolean(
+      fromUrl?.waypoints && fromUrl.waypoints.filter((w) => w.place).length >= 2
+    );
 
     set({
       initialized: true,
@@ -218,6 +241,7 @@ export const useNavStore = create<NavStore>((set, get) => ({
       lang: savedLang,
       favorites,
       recents,
+      mobileStopsEditing: !hasUrlRoute,
       ...(fromUrl?.mode ? { mode: fromUrl.mode } : {}),
       ...(fromUrl?.mapStyle ? { mapStyle: fromUrl.mapStyle } : {}),
       ...(fromUrl?.waypoints ? { waypoints: fromUrl.waypoints } : {}),
@@ -226,7 +250,7 @@ export const useNavStore = create<NavStore>((set, get) => ({
       ...(fromUrl?.transitFilters ? { transitFilters: fromUrl.transitFilters } : {}),
     });
 
-    if (fromUrl?.waypoints && fromUrl.waypoints.filter((w) => w.place).length >= 2) {
+    if (hasUrlRoute) {
       void get().calculateRoute();
     }
   },
@@ -264,6 +288,50 @@ export const useNavStore = create<NavStore>((set, get) => ({
 
   toggleShowStations: () => set((s) => ({ showStations: !s.showStations })),
 
+  setMobileSheetSnap: (mobileSheetSnap) => set({ mobileSheetSnap }),
+  setMobileStopsEditing: (mobileStopsEditing) => set({ mobileStopsEditing }),
+  openMobileSearch: (uid) =>
+    set({ mobileSearchTargetUid: uid, selectedStation: null, mapClickPin: null }),
+  closeMobileSearch: () => set({ mobileSearchTargetUid: null }),
+
+  startMapPickForWaypoint: (uid) =>
+    set({
+      mobileSearchTargetUid: null,
+      mapPickTargetUid: uid,
+      mobileSheetSnap: 'peek',
+      selectedStation: null,
+      mapClickPin: null,
+    }),
+
+  cancelMapPick: () => set({ mapPickTargetUid: null, mobileSheetSnap: 'half' }),
+
+  completeMapPick: async (lat, lon) => {
+    const targetUid = get().mapPickTargetUid;
+    if (!targetUid) return;
+    set({ mapPickTargetUid: null, mobileSheetSnap: 'half' });
+
+    let place: PlaceResult = {
+      id: `pin-${lat.toFixed(5)}-${lon.toFixed(5)}`,
+      name: `${lat.toFixed(5)}, ${lon.toFixed(5)}`,
+      subtitle: 'München',
+      lat,
+      lon,
+      category: 'pin',
+    };
+
+    try {
+      const res = await fetch(
+        `/api/geocode?lat=${lat.toFixed(6)}&lon=${lon.toFixed(6)}&lang=${get().lang}`
+      );
+      const data = (await res.json()) as { place?: PlaceResult };
+      if (data.place) place = data.place;
+    } catch {
+      // Keep coordinate fallback
+    }
+
+    get().setWaypointPlace(targetUid, place);
+  },
+
   setWaypointPlace: (uid, place) => {
     if (place) get().addRecent(place);
     set((s) => ({
@@ -282,7 +350,7 @@ export const useNavStore = create<NavStore>((set, get) => ({
     } else {
       const filled = get().waypoints.filter((w) => w.place !== null);
       if (filled.length < 2) {
-        set({ roadRoute: null, transitPlan: null });
+        set({ roadRoute: null, transitPlan: null, mobileStopsEditing: true });
       } else {
         void get().calculateRoute({});
       }
@@ -302,20 +370,20 @@ export const useNavStore = create<NavStore>((set, get) => ({
   },
 
   addIntermediateStop: (place = null) => {
+    const newUid = makeUid();
     set((s) => {
       if (s.waypoints.length >= 10) return s;
-      // Insert just before the final destination
       const next = [...s.waypoints];
-      const newWp: Waypoint = {
-        uid: makeUid(),
+      next.splice(next.length - 1, 0, {
+        uid: newUid,
         place,
         dwellMinutes: 15,
-      };
-      next.splice(next.length - 1, 0, newWp);
+      });
       return {
         waypoints: next,
         selectedTransitAlternatives: {},
         highlighted: null,
+        mobileStopsEditing: true,
       };
     });
     if (place) {
@@ -338,10 +406,10 @@ export const useNavStore = create<NavStore>((set, get) => ({
           transitPlan: null,
           highlighted: null,
           selectedTransitAlternatives: {},
+          mobileStopsEditing: true,
         };
       }
       const next = s.waypoints.filter((w) => w.uid !== uid);
-      // Ensure origin and destination have 0 dwell
       if (next.length > 0) next[0] = { ...next[0], dwellMinutes: 0 };
       if (next.length > 1) next[next.length - 1] = { ...next[next.length - 1], dwellMinutes: 0 };
       return {
@@ -354,7 +422,7 @@ export const useNavStore = create<NavStore>((set, get) => ({
     if (filled.length >= 2) {
       void get().calculateRoute({});
     } else {
-      set({ roadRoute: null, transitPlan: null });
+      set({ roadRoute: null, transitPlan: null, mobileStopsEditing: true });
     }
   },
 
@@ -413,6 +481,7 @@ export const useNavStore = create<NavStore>((set, get) => ({
       highlighted: null,
       selectedTransitAlternatives: {},
       liveFollowActive: false,
+      mobileStopsEditing: true,
     });
   },
 
@@ -425,7 +494,6 @@ export const useNavStore = create<NavStore>((set, get) => ({
       } else if (role === 'end') {
         next[next.length - 1] = { ...next[next.length - 1], place, dwellMinutes: 0 };
       } else {
-        // Insert before destination, or fill an empty intermediate slot if one exists
         const emptyMidIdx = next.findIndex(
           (w, i) => i > 0 && i < next.length - 1 && w.place === null
         );
@@ -469,6 +537,8 @@ export const useNavStore = create<NavStore>((set, get) => ({
       selectedTransitAlternatives: {},
       highlighted: null,
       routeError: null,
+      mobileStopsEditing: false,
+      mobileSheetSnap: 'half',
     });
     void get().calculateRoute({});
   },
@@ -494,7 +564,6 @@ export const useNavStore = create<NavStore>((set, get) => ({
   toggleTransitFilter: (key) => {
     set((s) => {
       const exists = s.transitFilters.includes(key);
-      // Prevent disabling every single transit mode
       if (exists && s.transitFilters.length <= 1) return s;
       const next = exists
         ? s.transitFilters.filter((k) => k !== key)
@@ -509,7 +578,6 @@ export const useNavStore = create<NavStore>((set, get) => ({
   selectTransitAlternative: (legIndex, altIndex) => {
     const prev = get().selectedTransitAlternatives;
     const next: Record<number, number> = {};
-    // Keep selections for legs earlier than legIndex, apply new choice for legIndex, reset downstream legs
     for (const [kStr, v] of Object.entries(prev)) {
       const k = Number(kStr);
       if (k < legIndex) next[k] = v;
@@ -571,6 +639,8 @@ export const useNavStore = create<NavStore>((set, get) => ({
           roadRoute: null,
           isRouting: false,
           routeError: null,
+          mobileStopsEditing: false,
+          mobileSheetSnap: s.mobileSheetSnap === 'peek' ? 'half' : s.mobileSheetSnap,
           fitBoundsVersion: s.fitBoundsVersion + 1,
         }));
       } else {
@@ -596,6 +666,8 @@ export const useNavStore = create<NavStore>((set, get) => ({
           transitPlan: null,
           isRouting: false,
           routeError: null,
+          mobileStopsEditing: false,
+          mobileSheetSnap: s.mobileSheetSnap === 'peek' ? 'half' : s.mobileSheetSnap,
           fitBoundsVersion: s.fitBoundsVersion + 1,
         }));
       }
@@ -651,19 +723,24 @@ export const useNavStore = create<NavStore>((set, get) => ({
   setHighlighted: (highlighted) => set({ highlighted }),
 
   setSelectedStation: (selectedStation) =>
-    set({
+    set((s) => ({
       selectedStation,
-      mapClickPin: selectedStation ? null : get().mapClickPin,
-    }),
+      mapClickPin: selectedStation ? null : s.mapClickPin,
+      mobileSheetSnap:
+        selectedStation && s.mobileSheetSnap === 'peek' ? 'half' : s.mobileSheetSnap,
+    })),
 
   openMapClickPin: async (lat, lon) => {
-    set({
+    set((s) => ({
       selectedStation: null,
       mapClickPin: { lat, lon, place: null, loading: true },
-    });
+      mobileSheetSnap: s.mobileSheetSnap === 'peek' ? 'half' : s.mobileSheetSnap,
+    }));
     try {
       const lang = get().lang;
-      const res = await fetch(`/api/geocode?lat=${lat.toFixed(6)}&lon=${lon.toFixed(6)}&lang=${lang}`);
+      const res = await fetch(
+        `/api/geocode?lat=${lat.toFixed(6)}&lon=${lon.toFixed(6)}&lang=${lang}`
+      );
       const data = (await res.json()) as { place?: PlaceResult };
       const current = get().mapClickPin;
       if (current && current.lat === lat && current.lon === lon) {
@@ -741,7 +818,11 @@ export const useNavStore = create<NavStore>((set, get) => ({
   },
 
   setLiveFollowActive: (liveFollowActive) =>
-    set({ liveFollowActive, gpsError: liveFollowActive ? null : get().gpsError }),
+    set((s) => ({
+      liveFollowActive,
+      gpsError: liveFollowActive ? null : s.gpsError,
+      mobileSheetSnap: liveFollowActive ? 'peek' : s.mobileSheetSnap,
+    })),
   setUserLocation: (userLocation) => set({ userLocation }),
   setGpsError: (gpsError) => set({ gpsError }),
   triggerFitBounds: () => set((s) => ({ fitBoundsVersion: s.fitBoundsVersion + 1 })),

@@ -9,11 +9,13 @@ const ESRI_WORLD_IMAGERY_TILES = [
 ];
 
 let cachedHybridStyle: StyleSpecification | null = null;
+let maptilerBlockedOnOrigin = false;
 
 /**
  * Returns a MapLibre style URL or StyleSpecification.
- * Uses MapTiler (Streets Light/Dark + Hybrid) if NEXT_PUBLIC_MAPTILER_KEY is configured,
- * and falls back seamlessly to OpenFreeMap + Esri World Imagery Hybrid with zero API keys!
+ * Uses MapTiler (Streets Light/Dark + Hybrid) if NEXT_PUBLIC_MAPTILER_KEY is configured AND accepted
+ * by MapTiler for the current origin, and falls back seamlessly to OpenFreeMap + Esri World Imagery
+ * Hybrid (e.g., if no key is set, if MapTiler origin restrictions reject localhost, or if quota is exceeded).
  */
 export async function resolveMapStyle(
   mapStyle: MapStyleMode,
@@ -21,12 +23,25 @@ export async function resolveMapStyle(
 ): Promise<string | StyleSpecification> {
   const maptilerKey = process.env.NEXT_PUBLIC_MAPTILER_KEY?.trim();
 
-  if (maptilerKey) {
-    if (mapStyle === 'hybrid') {
-      return `https://api.maptiler.com/maps/hybrid/style.json?key=${encodeURIComponent(maptilerKey)}`;
+  if (maptilerKey && !maptilerBlockedOnOrigin) {
+    const styleId =
+      mapStyle === 'hybrid'
+        ? 'hybrid'
+        : theme === 'dark'
+          ? 'streets-v2-dark'
+          : 'streets-v2';
+    const maptilerUrl = `https://api.maptiler.com/maps/${styleId}/style.json?key=${encodeURIComponent(maptilerKey)}`;
+    try {
+      const probe = await fetch(maptilerUrl);
+      if (probe.ok) {
+        return (await probe.json()) as StyleSpecification;
+      }
+      if (probe.status === 401 || probe.status === 403 || probe.status === 429) {
+        maptilerBlockedOnOrigin = true;
+      }
+    } catch {
+      // Network failure — gracefully fall back to open tiles below
     }
-    const styleId = theme === 'dark' ? 'streets-v2-dark' : 'streets-v2';
-    return `https://api.maptiler.com/maps/${styleId}/style.json?key=${encodeURIComponent(maptilerKey)}`;
   }
 
   // Zero-key automatic fallback

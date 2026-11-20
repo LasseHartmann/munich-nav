@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
+import { MapPinned, X } from 'lucide-react';
+import { getTranslations } from '@/lib/i18n';
 import { encodeRouteToQuery } from '@/lib/urlState';
 import { useNavStore } from '@/store/useNavStore';
 import { MapCanvas } from '@/components/map/MapCanvas';
@@ -8,6 +10,7 @@ import { MapControls } from '@/components/map/MapControls';
 import { StationPopup } from '@/components/map/StationPopup';
 import { MapClickCard } from '@/components/map/MapClickCard';
 import { PlannerPanel } from '@/components/planner/PlannerPanel';
+import { MobileSearchModal } from '@/components/planner/MobileSearchModal';
 import { LiveFollowBanner } from '@/components/navigation/LiveFollowBanner';
 
 export function MucNavApp() {
@@ -21,6 +24,10 @@ export function MucNavApp() {
   const departMode = useNavStore((s) => s.departMode);
   const departAtLocal = useNavStore((s) => s.departAtLocal);
   const transitFilters = useNavStore((s) => s.transitFilters);
+  const mapPickTargetUid = useNavStore((s) => s.mapPickTargetUid);
+  const cancelMapPick = useNavStore((s) => s.cancelMapPick);
+
+  const t = getTranslations(lang);
 
   useEffect(() => {
     hydrateClient();
@@ -62,8 +69,31 @@ export function MucNavApp() {
       <PlannerPanel />
       <MapControls />
       <LiveFollowBanner />
-      <StationPopup />
-      <MapClickCard />
+
+      {/* Desktop floating cards (mobile swaps them seamlessly inside MobileBottomSheet!) */}
+      <StationPopup variant="floating" />
+      <MapClickCard variant="floating" />
+
+      {/* Mobile full-screen stop search modal */}
+      <MobileSearchModal />
+
+      {/* Mobile "Pick on Map" guidance pill */}
+      {mapPickTargetUid && (
+        <div className="fixed pt-safe inset-x-3 top-0 z-40 flex justify-center pointer-events-none">
+          <div className="pointer-events-auto inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-[#0065ae] text-white shadow-2xl border border-white/25">
+            <MapPinned className="w-4.5 h-4.5 shrink-0" />
+            <span className="text-xs font-extrabold">{t.pickOnMapBanner}</span>
+            <button
+              type="button"
+              onClick={cancelMapPick}
+              className="ml-1 w-7 h-7 rounded-lg bg-white/20 hover:bg-white/30 inline-flex items-center justify-center active:scale-90 cursor-pointer"
+              aria-label={t.cancel}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

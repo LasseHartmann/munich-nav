@@ -19,17 +19,48 @@ import {
 } from '@/lib/geo';
 import { getTranslations } from '@/lib/i18n';
 import { getLineVisualStyle } from '@/lib/mvvColors';
+import { useNowTick } from '@/lib/useNowTick';
 import { useNavStore } from '@/store/useNavStore';
 import type { TransitSegment } from '@/lib/types';
 import { LineBadge } from '@/components/ui/LineBadge';
 
-function DelayTag({ delay, realTime, cancelled }: { delay: number; realTime: boolean; cancelled: boolean }) {
+function CountdownChip({ isoTime, nowMs }: { isoTime?: string; nowMs: number }) {
+  const lang = useNavStore((s) => s.lang);
+  const t = getTranslations(lang);
+  if (!isoTime || nowMs === 0) return null;
+
+  const diffMin = Math.round((new Date(isoTime).getTime() - nowMs) / 60000);
+  if (diffMin < -2 || diffMin > 90) return null;
+
+  const isNow = diffMin <= 0;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold tabular-nums ${
+        isNow
+          ? 'bg-emerald-400 text-slate-950 animate-pulse'
+          : 'bg-white/20 text-white backdrop-blur-xs'
+      }`}
+    >
+      {isNow ? t.leavingNow : `${t.leaveIn} ${diffMin} min`}
+    </span>
+  );
+}
+
+function DelayTag({
+  delay,
+  realTime,
+  cancelled,
+}: {
+  delay: number;
+  realTime: boolean;
+  cancelled: boolean;
+}) {
   const lang = useNavStore((s) => s.lang);
   const t = getTranslations(lang);
 
   if (cancelled) {
     return (
-      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+      <span className="inline-block text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
         {t.cancelled}
       </span>
     );
@@ -37,20 +68,20 @@ function DelayTag({ delay, realTime, cancelled }: { delay: number; realTime: boo
   if (!realTime) return null;
   if (delay >= 1) {
     return (
-      <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+      <span className="inline-block text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 tabular-nums">
         +{delay}m
       </span>
     );
   }
   if (delay <= -1) {
     return (
-      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+      <span className="inline-block text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
         {delay}m
       </span>
     );
   }
   return (
-    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+    <span className="inline-block text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
       {t.onTime}
     </span>
   );
@@ -60,6 +91,7 @@ function TransitSegmentRow({ segment }: { segment: TransitSegment }) {
   const lang = useNavStore((s) => s.lang);
   const setHighlighted = useNavStore((s) => s.setHighlighted);
   const highlighted = useNavStore((s) => s.highlighted);
+  const setMobileSheetSnap = useNavStore((s) => s.setMobileSheetSnap);
   const t = getTranslations(lang);
   const [showStops, setShowStops] = useState(false);
 
@@ -80,6 +112,9 @@ function TransitSegmentRow({ segment }: { segment: TransitSegment }) {
         coordinates: segment.coordinates,
         label: segment.id,
       });
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        setMobileSheetSnap('half');
+      }
     }
   };
 
@@ -88,21 +123,21 @@ function TransitSegmentRow({ segment }: { segment: TransitSegment }) {
       <button
         type="button"
         onClick={handleFocus}
-        className={`w-full text-left flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+        className={`w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-all active:scale-[0.99] cursor-pointer ${
           isSelected
-            ? 'bg-sky-50 dark:bg-sky-950/50 ring-1 ring-sky-400'
-            : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            ? 'bg-sky-50 dark:bg-sky-950/60 ring-2 ring-[#0065ae]'
+            : 'bg-slate-100/75 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800'
         }`}
       >
-        <div className="w-11 text-[11px] font-mono text-slate-400 shrink-0">
+        <div className="w-12 text-xs font-mono font-bold tabular-nums text-slate-500 dark:text-slate-400 shrink-0">
           {formatMunichTime(segment.startTime, lang)}
         </div>
-        <div className="w-4 flex justify-center shrink-0">
-          <Footprints className="w-3.5 h-3.5 text-slate-400" />
+        <div className="w-6 h-6 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+          <Footprints className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
         </div>
-        <div className="flex-1 min-w-0 text-slate-600 dark:text-slate-300">
-          <span className="font-medium">{t.walkSegment}</span>{' '}
-          <span className="text-slate-400">
+        <div className="flex-1 min-w-0 text-slate-700 dark:text-slate-200">
+          <span className="font-bold">{t.walkSegment}</span>{' '}
+          <span className="text-slate-500 dark:text-slate-400 font-medium">
             · {formatDuration(segment.durationSeconds, lang)}
             {segment.distanceMeters ? ` (${formatDistance(segment.distanceMeters, lang)})` : ''}
           </span>
@@ -113,10 +148,10 @@ function TransitSegmentRow({ segment }: { segment: TransitSegment }) {
 
   return (
     <div
-      className={`rounded-xl border transition-all ${
+      className={`rounded-2xl border-2 transition-all overflow-hidden ${
         isSelected
-          ? 'border-[#0065ae] bg-sky-50/70 dark:bg-sky-950/35 shadow-xs'
-          : 'border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/50 hover:border-slate-300 dark:hover:border-slate-700'
+          ? 'border-[#0065ae] bg-sky-50/70 dark:bg-sky-950/35 shadow-sm'
+          : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/90 hover:border-slate-300 dark:hover:border-slate-700'
       }`}
     >
       <div
@@ -126,12 +161,12 @@ function TransitSegmentRow({ segment }: { segment: TransitSegment }) {
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') handleFocus();
         }}
-        className="p-2.5 cursor-pointer"
+        className="p-3 cursor-pointer"
       >
-        {/* Top line: Departure station & time */}
         <div className="flex items-start gap-2.5">
-          <div className="w-11 shrink-0 leading-tight">
-            <div className="text-xs font-bold font-mono text-slate-900 dark:text-white">
+          {/* Bold time column */}
+          <div className="w-12 shrink-0 leading-tight space-y-1">
+            <div className="text-[13px] font-extrabold font-mono tabular-nums text-slate-900 dark:text-white">
               {formatMunichTime(segment.startTime, lang)}
             </div>
             <DelayTag
@@ -141,48 +176,50 @@ function TransitSegmentRow({ segment }: { segment: TransitSegment }) {
             />
           </div>
 
+          {/* Colored transit spine */}
           <div className="flex flex-col items-center self-stretch pt-1 shrink-0">
             <span
-              className="w-2.5 h-2.5 rounded-full shrink-0"
+              className="w-3 h-3 rounded-full shrink-0 ring-2 ring-white dark:ring-slate-900 shadow-2xs"
               style={{ backgroundColor: style.bg }}
             />
             <span
-              className="w-1 flex-1 my-1 rounded-full min-h-[28px]"
+              className="w-1.5 flex-1 my-1 rounded-full min-h-[34px]"
               style={{ backgroundColor: style.bg }}
             />
             <span
-              className="w-2.5 h-2.5 rounded-full border-2 bg-white dark:bg-slate-900 shrink-0"
+              className="w-3 h-3 rounded-full border-2 bg-white dark:bg-slate-900 shrink-0"
               style={{ borderColor: style.bg }}
             />
           </div>
 
-          <div className="flex-1 min-w-0 space-y-1.5">
+          {/* Station & line info */}
+          <div className="flex-1 min-w-0 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+              <span className="text-[13px] font-extrabold text-slate-900 dark:text-white truncate">
                 {segment.fromName}
               </span>
               {segment.fromTrack && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
+                <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 shrink-0">
                   {t.platform} {segment.fromTrack}
                 </span>
               )}
             </div>
 
-            {/* Line badge & direction */}
-            <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Chunky line badge & headsign */}
+            <div className="flex items-center gap-2 flex-wrap">
               <LineBadge
                 mode={segment.mode}
                 line={segment.routeShortName}
                 color={segment.routeColor}
                 textColor={segment.routeTextColor}
-                size="sm"
+                size="md"
               />
               {segment.headsign && (
-                <span className="text-[11px] text-slate-600 dark:text-slate-300 truncate">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
                   → {segment.headsign}
                 </span>
               )}
-              <span className="text-[10px] text-slate-400 ml-auto shrink-0">
+              <span className="text-[11px] font-bold text-slate-400 ml-auto shrink-0 tabular-nums">
                 {formatDuration(segment.durationSeconds, lang)}
               </span>
             </div>
@@ -196,25 +233,25 @@ function TransitSegmentRow({ segment }: { segment: TransitSegment }) {
                     e.stopPropagation();
                     setShowStops((v) => !v);
                   }}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
+                  className="inline-flex items-center gap-1 py-1 px-2 -ml-2 rounded-lg text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800 cursor-pointer"
                 >
                   {showStops ? (
-                    <ChevronDown className="w-3 h-3" />
+                    <ChevronDown className="w-3.5 h-3.5" />
                   ) : (
-                    <ChevronRight className="w-3 h-3" />
+                    <ChevronRight className="w-3.5 h-3.5" />
                   )}
                   {segment.intermediateStops.length + 1}{' '}
                   {segment.intermediateStops.length === 0 ? t.stopSingular : t.stopsCount}
                 </button>
                 {showStops && (
-                  <ul className="mt-1.5 pl-2 border-l border-slate-200 dark:border-slate-700 space-y-1">
+                  <ul className="mt-1.5 pl-2.5 border-l-2 border-slate-200 dark:border-slate-700 space-y-1.5">
                     {segment.intermediateStops.map((st, idx) => (
                       <li
                         key={`${st.name}-${idx}`}
-                        className="flex items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400"
+                        className="flex items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-300"
                       >
-                        <span className="truncate">{st.name}</span>
-                        <span className="font-mono text-[10px] shrink-0">
+                        <span className="truncate font-medium">{st.name}</span>
+                        <span className="font-mono text-[11px] tabular-nums text-slate-400 shrink-0">
                           {formatMunichTime(st.departure || st.arrival, lang)}
                         </span>
                       </li>
@@ -224,12 +261,12 @@ function TransitSegmentRow({ segment }: { segment: TransitSegment }) {
               </div>
             )}
 
-            {/* Arrival station */}
+            {/* Arrival row */}
             <div className="flex items-center justify-between gap-2 pt-0.5">
-              <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+              <span className="text-[13px] font-extrabold text-slate-900 dark:text-white truncate">
                 {segment.toName}
               </span>
-              <span className="text-xs font-bold font-mono text-slate-700 dark:text-slate-200 shrink-0">
+              <span className="text-[13px] font-extrabold font-mono tabular-nums text-slate-800 dark:text-slate-100 shrink-0">
                 {formatMunichTime(segment.endTime, lang)}
               </span>
             </div>
@@ -252,34 +289,38 @@ export function RouteResults() {
   const setLiveFollowActive = useNavStore((s) => s.setLiveFollowActive);
   const selectTransitAlternative = useNavStore((s) => s.selectTransitAlternative);
   const setHighlighted = useNavStore((s) => s.setHighlighted);
+  const setMobileSheetSnap = useNavStore((s) => s.setMobileSheetSnap);
   const flyTo = useNavStore((s) => s.flyTo);
   const loadDemoTrip = useNavStore((s) => s.loadDemoTrip);
 
+  const nowMs = useNowTick();
   const t = getTranslations(lang);
   const [expandedRoadLegs, setExpandedRoadLegs] = useState<Record<number, boolean>>({ 0: true });
 
   if (isRouting) {
     return (
-      <div className="py-10 flex flex-col items-center justify-center gap-2.5 text-slate-500 dark:text-slate-400">
-        <Loader2 className="w-6 h-6 animate-spin text-[#0065ae]" />
-        <span className="text-xs font-medium">{t.calculating}</span>
+      <div className="py-10 flex flex-col items-center justify-center gap-3 text-slate-500 dark:text-slate-400">
+        <div className="w-11 h-11 rounded-2xl bg-[#0065ae]/12 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-[#0065ae]" />
+        </div>
+        <span className="text-sm font-bold">{t.calculating}</span>
       </div>
     );
   }
 
   if (routeError) {
     return (
-      <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/70 flex items-start gap-2.5 text-xs text-rose-700 dark:text-rose-300">
-        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+      <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border-2 border-rose-200 dark:border-rose-800/70 flex items-start gap-2.5 text-xs text-rose-700 dark:text-rose-300">
+        <AlertCircle className="w-4.5 h-4.5 shrink-0 mt-0.5" />
         <div>
-          <div className="font-semibold">{t.routeError}</div>
-          <div className="text-[11px] opacity-90 mt-0.5">{routeError}</div>
+          <div className="font-extrabold text-sm">{t.routeError}</div>
+          <div className="text-xs opacity-90 mt-0.5">{routeError}</div>
         </div>
       </div>
     );
   }
 
-  // PUBLIC TRANSPORT RESULTS
+  // PUBLIC TRANSPORT RESULTS (Citymapper-style Playful Utility!)
   if (mode === 'transit' && transitPlan) {
     const firstLeg = transitPlan.legs[0];
     const lastLeg = transitPlan.legs[transitPlan.legs.length - 1];
@@ -287,20 +328,24 @@ export function RouteResults() {
     const lastItin = lastLeg?.alternatives[lastLeg.selectedIndex];
 
     return (
-      <div className="space-y-3">
-        {/* Overall Multi-Stop Summary Card */}
-        <div className="p-3 rounded-xl bg-gradient-to-br from-[#0065ae]/10 via-sky-50 to-white dark:from-[#0065ae]/25 dark:via-slate-800/80 dark:to-slate-900 border border-sky-200/80 dark:border-sky-800/50">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-[#0065ae] dark:text-sky-400">
-                {t.totalTrip}
+      <div className="space-y-3.5">
+        {/* Vibrant MVV Cobalt Hero Summary Card */}
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-[#0065ae] via-[#0277bd] to-[#00897b] text-white shadow-lg shadow-[#0065ae]/20">
+          <div className="flex items-start justify-between gap-2.5">
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-sky-100">
+                  {t.totalTrip}
+                </span>
+                <CountdownChip isoTime={firstItin?.startTime} nowMs={nowMs} />
               </div>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <span className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+
+              <div className="flex items-baseline gap-2.5 flex-wrap">
+                <span className="text-2xl font-extrabold tracking-tight tabular-nums">
                   {formatDuration(transitPlan.totalDurationSeconds, lang)}
                 </span>
                 {firstItin && lastItin && (
-                  <span className="text-xs font-mono font-semibold text-slate-600 dark:text-slate-300">
+                  <span className="text-sm font-mono font-bold tabular-nums text-sky-100">
                     {formatMunichTime(firstItin.startTime, lang)} →{' '}
                     {formatMunichTime(lastItin.endTime, lang)}
                   </span>
@@ -311,32 +356,35 @@ export function RouteResults() {
             <button
               type="button"
               onClick={() => setLiveFollowActive(!liveFollowActive)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+              className={`inline-flex items-center justify-center gap-1.5 h-11 px-4 rounded-2xl text-sm font-extrabold transition-all active:scale-95 cursor-pointer shrink-0 shadow-md ${
                 liveFollowActive
-                  ? 'bg-rose-600 text-white shadow-sm'
-                  : 'bg-[#0065ae] hover:bg-[#005494] text-white shadow-sm'
+                  ? 'bg-rose-500 hover:bg-rose-600 text-white'
+                  : 'bg-emerald-400 hover:bg-emerald-300 text-slate-950'
               }`}
             >
-              <Navigation className="w-3.5 h-3.5" />
-              {liveFollowActive ? t.liveFollowStop : t.liveFollowStart}
+              <Navigation className="w-4 h-4" />
+              <span>{liveFollowActive ? t.liveFollowStop : t.liveFollowStart}</span>
             </button>
           </div>
 
-          <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-600 dark:text-slate-300">
+          <div className="mt-2.5 pt-2.5 border-t border-white/15 flex items-center gap-3 text-xs font-semibold text-sky-50 flex-wrap">
             <span>
-              {t.travelTime}: <strong>{formatDuration(transitPlan.totalTravelSeconds, lang)}</strong>
+              {t.travelTime}:{' '}
+              <strong className="text-white">
+                {formatDuration(transitPlan.totalTravelSeconds, lang)}
+              </strong>
             </span>
             {transitPlan.totalDwellSeconds > 0 && (
-              <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-extrabold text-[11px]">
                 <Clock className="w-3 h-3" />
-                {t.stayTime}: <strong>{formatDuration(transitPlan.totalDwellSeconds, lang)}</strong>
+                {t.stayTime}: {formatDuration(transitPlan.totalDwellSeconds, lang)}
               </span>
             )}
           </div>
         </div>
 
         {/* Chained Legs */}
-        <div className="space-y-3">
+        <div className="space-y-3.5">
           {transitPlan.legs.map((leg) => {
             const chosen = leg.alternatives[leg.selectedIndex];
             const isMultiLeg = transitPlan.legs.length > 1;
@@ -344,30 +392,30 @@ export function RouteResults() {
             const nextChosen = nextLeg?.alternatives[nextLeg.selectedIndex];
 
             return (
-              <div key={leg.legIndex} className="space-y-2">
-                <div className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 p-2.5 space-y-2">
+              <div key={leg.legIndex} className="space-y-2.5">
+                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/70 p-3 space-y-2.5">
                   {/* Leg header */}
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
                       {isMultiLeg && (
-                        <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-[#0065ae] text-white shrink-0">
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-lg bg-[#0065ae] text-white shrink-0">
                           {t.leg} {leg.legIndex + 1}
                         </span>
                       )}
-                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">
+                      <span className="text-[13px] font-extrabold text-slate-900 dark:text-white truncate">
                         {leg.fromLabel} → {leg.toLabel}
                       </span>
                     </div>
                     {chosen && (
-                      <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 shrink-0">
+                      <span className="text-xs font-extrabold text-slate-500 dark:text-slate-400 shrink-0 tabular-nums">
                         {formatDuration(chosen.durationSeconds, lang)}
                       </span>
                     )}
                   </div>
 
-                  {/* Alternative connection selector pills */}
+                  {/* Chunky Alternative Connection Cards */}
                   {leg.alternatives.length > 1 && (
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
                       {leg.alternatives.map((alt, altIdx) => {
                         const isPicked = altIdx === leg.selectedIndex;
                         const transitSegs = alt.segments.filter((s) => s.mode !== 'WALK');
@@ -376,19 +424,19 @@ export function RouteResults() {
                             key={alt.id}
                             type="button"
                             onClick={() => selectTransitAlternative(leg.legIndex, altIdx)}
-                            className={`flex flex-col items-start gap-1 px-2.5 py-1.5 rounded-lg border text-left transition-all shrink-0 cursor-pointer ${
+                            className={`flex flex-col items-start gap-1.5 px-3 py-2 rounded-xl border-2 text-left transition-all active:scale-95 shrink-0 cursor-pointer ${
                               isPicked
-                                ? 'bg-white dark:bg-slate-800 border-[#0065ae] ring-1 ring-[#0065ae]/40 shadow-2xs'
-                                : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 opacity-80 hover:opacity-100'
+                                ? 'bg-white dark:bg-slate-800 border-[#0065ae] shadow-sm'
+                                : 'bg-white/70 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 opacity-85 hover:opacity-100'
                             }`}
                           >
-                            <div className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-slate-900 dark:text-white">
+                            <div className="flex items-center gap-1.5 text-xs font-mono font-extrabold tabular-nums text-slate-900 dark:text-white">
                               <span>
                                 {formatMunichTime(alt.startTime, lang)}–
                                 {formatMunichTime(alt.endTime, lang)}
                               </span>
-                              <span className="text-[10px] font-sans font-medium text-slate-500">
-                                ({formatDuration(alt.durationSeconds, lang)})
+                              <span className="text-[11px] font-sans font-bold text-slate-500 dark:text-slate-400">
+                                {formatDuration(alt.durationSeconds, lang)}
                               </span>
                             </div>
                             <div className="flex items-center gap-1">
@@ -415,30 +463,31 @@ export function RouteResults() {
 
                   {/* Selected itinerary segments */}
                   {chosen ? (
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       {chosen.segments.map((seg) => (
                         <TransitSegmentRow key={seg.id} segment={seg} />
                       ))}
                     </div>
                   ) : (
-                    <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-xs text-amber-800 dark:text-amber-300">
+                    <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-xs font-semibold text-amber-800 dark:text-amber-300">
                       {leg.error || t.noTransitFound}
                     </div>
                   )}
                 </div>
 
-                {/* Dwell / Stay Divider between legs */}
+                {/* High-Visibility Amber Stay Divider between legs */}
                 {leg.legIndex < transitPlan.legs.length - 1 && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/50 text-[11px] text-amber-900 dark:text-amber-200">
-                    <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                    <span className="truncate">
-                      <strong>
-                        {t.dwellLabel} {leg.dwellAfterMinutes} {t.dwellMinutes}
-                      </strong>{' '}
-                      · {leg.toLabel}
-                    </span>
+                  <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl bg-amber-100/90 dark:bg-amber-950/60 border-2 border-amber-300/80 dark:border-amber-700/70 text-xs text-amber-950 dark:text-amber-100">
+                    <div className="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-extrabold truncate">
+                        {t.dwellLabel} {leg.dwellAfterMinutes} {t.dwellMinutes} · {leg.toLabel}
+                      </div>
+                    </div>
                     {nextChosen && (
-                      <span className="ml-auto font-mono font-semibold text-amber-700 dark:text-amber-300 shrink-0">
+                      <span className="font-mono font-extrabold tabular-nums text-amber-900 dark:text-amber-300 bg-white/70 dark:bg-amber-900/60 px-2 py-0.5 rounded-lg shrink-0">
                         → {formatMunichTime(nextChosen.startTime, lang)}
                       </span>
                     )}
@@ -461,21 +510,28 @@ export function RouteResults() {
         ? new Date(baseMs + roadRoute.totalDurationSeconds * 1000).toISOString()
         : undefined;
 
+    const heroGradient =
+      mode === 'bike'
+        ? 'from-emerald-600 to-teal-600 shadow-emerald-600/20'
+        : mode === 'foot'
+          ? 'from-teal-600 to-cyan-600 shadow-teal-600/20'
+          : 'from-blue-600 to-indigo-600 shadow-blue-600/20';
+
     return (
-      <div className="space-y-3">
-        {/* Summary card */}
-        <div className="p-3 rounded-xl bg-gradient-to-br from-slate-100 via-white to-slate-50 dark:from-slate-800 dark:via-slate-900 dark:to-slate-900 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between gap-2">
+      <div className="space-y-3.5">
+        {/* Vibrant Mode-Colored Hero Summary Card */}
+        <div className={`p-4 rounded-2xl bg-gradient-to-br ${heroGradient} text-white shadow-lg`}>
+          <div className="flex items-center justify-between gap-2.5">
             <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              <div className="flex items-baseline gap-2.5">
+                <span className="text-2xl font-extrabold tracking-tight tabular-nums">
                   {formatDuration(roadRoute.totalDurationSeconds, lang)}
                 </span>
-                <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                <span className="text-base font-bold text-white/85 tabular-nums">
                   {formatDistance(roadRoute.totalDistanceMeters, lang)}
                 </span>
               </div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              <div className="text-xs font-semibold text-white/85 mt-0.5 tabular-nums">
                 {etaIso ? `ETA ${formatMunichTime(etaIso, lang)} · ` : ''}
                 {t.viaProvider}{' '}
                 {roadRoute.provider === 'ors' ? 'OpenRouteService' : 'Valhalla OSM'}
@@ -485,20 +541,20 @@ export function RouteResults() {
             <button
               type="button"
               onClick={() => setLiveFollowActive(!liveFollowActive)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+              className={`inline-flex items-center justify-center gap-1.5 h-11 px-4 rounded-2xl text-sm font-extrabold transition-all active:scale-95 cursor-pointer shrink-0 shadow-md ${
                 liveFollowActive
-                  ? 'bg-rose-600 text-white shadow-sm'
-                  : 'bg-[#0065ae] hover:bg-[#005494] text-white shadow-sm'
+                  ? 'bg-rose-500 hover:bg-rose-600 text-white'
+                  : 'bg-white text-slate-950 hover:bg-slate-100'
               }`}
             >
-              <Navigation className="w-3.5 h-3.5" />
-              {liveFollowActive ? t.liveFollowStop : t.liveFollowStart}
+              <Navigation className="w-4 h-4" />
+              <span>{liveFollowActive ? t.liveFollowStop : t.liveFollowStart}</span>
             </button>
           </div>
         </div>
 
         {/* Turn-by-turn legs */}
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {roadRoute.legs.map((leg, legIdx) => {
             const fromName = filledWaypoints[legIdx]?.place?.name || `Stop ${legIdx + 1}`;
             const toName = filledWaypoints[legIdx + 1]?.place?.name || `Stop ${legIdx + 2}`;
@@ -507,7 +563,7 @@ export function RouteResults() {
             return (
               <div
                 key={legIdx}
-                className="rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 overflow-hidden"
+                className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900/80 overflow-hidden shadow-2xs"
               >
                 <button
                   type="button"
@@ -521,19 +577,19 @@ export function RouteResults() {
                       });
                     }
                   }}
-                  className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer"
+                  className="w-full min-h-[48px] flex items-center justify-between gap-2 px-3.5 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer"
                 >
-                  <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
                     {isExpanded ? (
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
                     ) : (
-                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
                     )}
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">
+                    <span className="text-[13px] font-extrabold text-slate-900 dark:text-white truncate">
                       {fromName} → {toName}
                     </span>
                   </div>
-                  <span className="text-[11px] font-medium text-slate-500 shrink-0">
+                  <span className="text-xs font-bold text-slate-500 shrink-0 tabular-nums">
                     {formatDuration(leg.durationSeconds, lang)} ·{' '}
                     {formatDistance(leg.distanceMeters, lang)}
                   </span>
@@ -563,14 +619,17 @@ export function RouteResults() {
                                 label: `step-${legIdx}-${mIdx}`,
                               });
                             }
+                            if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                              setMobileSheetSnap('half');
+                            }
                           }}
-                          className="w-full flex items-start justify-between gap-2.5 px-3 py-2 text-left text-xs hover:bg-sky-50/70 dark:hover:bg-sky-950/30 transition-colors cursor-pointer"
+                          className="w-full min-h-[44px] flex items-center justify-between gap-3 px-3.5 py-2.5 text-left text-[13px] hover:bg-sky-50/70 dark:hover:bg-sky-950/30 active:bg-sky-100/70 transition-colors cursor-pointer"
                         >
-                          <span className="text-slate-700 dark:text-slate-200 leading-snug">
+                          <span className="font-semibold text-slate-800 dark:text-slate-100 leading-snug">
                             {m.instruction}
                           </span>
                           {m.distanceMeters > 0 && (
-                            <span className="text-[11px] font-mono text-slate-400 shrink-0">
+                            <span className="text-xs font-mono font-bold tabular-nums text-slate-400 shrink-0">
                               {formatDistance(m.distanceMeters, lang)}
                             </span>
                           )}
@@ -587,27 +646,31 @@ export function RouteResults() {
     );
   }
 
-  // EMPTY STATE
+  // PLAYFUL EMPTY STATE
   return (
-    <div className="p-4 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/70 space-y-3 text-center">
-      <div className="mx-auto w-10 h-10 rounded-xl bg-[#0065ae]/12 dark:bg-[#0065ae]/25 flex items-center justify-center text-[#0065ae] dark:text-sky-400">
-        <Route className="w-5 h-5" />
+    <div className="p-4 rounded-2xl bg-gradient-to-b from-sky-50/90 to-white dark:from-slate-800/70 dark:to-slate-900/70 border-2 border-sky-100 dark:border-slate-800 space-y-3 text-center">
+      <div className="mx-auto w-12 h-12 rounded-2xl bg-gradient-to-br from-[#0065ae] to-[#00a984] flex items-center justify-center text-white shadow-md shadow-[#0065ae]/25">
+        <Route className="w-6 h-6" />
       </div>
       <div className="space-y-1">
-        <h2 className="text-sm font-bold text-slate-900 dark:text-white">{t.emptyStateTitle}</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+        <h2 className="text-[15px] font-extrabold text-slate-900 dark:text-white tracking-tight">
+          {t.emptyStateTitle}
+        </h2>
+        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
           {t.emptyStateDesc}
         </p>
       </div>
       <button
         type="button"
         onClick={loadDemoTrip}
-        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[#0065ae] hover:bg-[#005494] text-white shadow-sm transition-colors cursor-pointer"
+        className="w-full min-h-[46px] inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-[13px] font-extrabold bg-[#0065ae] hover:bg-[#005494] text-white shadow-md shadow-[#0065ae]/25 active:scale-[0.98] transition-all cursor-pointer"
       >
-        <Sparkles className="w-3.5 h-3.5 shrink-0" />
+        <Sparkles className="w-4 h-4 shrink-0" />
         <span className="truncate">{t.demoTripBtn}</span>
       </button>
-      <p className="text-[11px] text-slate-400 dark:text-slate-500">{t.mapClickHint}</p>
+      <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+        {t.mapClickHint}
+      </p>
     </div>
   );
 }
