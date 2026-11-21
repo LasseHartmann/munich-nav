@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import {
-  Accessibility,
   AlertCircle,
   ChevronDown,
   ChevronRight,
@@ -11,8 +10,6 @@ import {
   Footprints,
   Loader2,
   Navigation,
-  Trees,
-  VolumeX,
 } from 'lucide-react';
 import {
   formatDistance,
@@ -23,73 +20,8 @@ import { getTranslations } from '@/lib/i18n';
 import { getLineVisualStyle } from '@/lib/mvvColors';
 import { useNowTick } from '@/lib/useNowTick';
 import { useNavStore } from '@/store/useNavStore';
-import type { TransitSegment, TravelMode, WalkMetrics, WalkOptions } from '@/lib/types';
+import type { TransitSegment } from '@/lib/types';
 import { LineBadge } from '@/components/ui/LineBadge';
-
-function RouteQualityBadges({
-  mode,
-  metrics,
-  walkOptions,
-  t,
-}: {
-  mode: TravelMode;
-  metrics?: WalkMetrics;
-  walkOptions: WalkOptions;
-  t: ReturnType<typeof getTranslations>;
-}) {
-  const showWalkMetrics = Boolean(metrics);
-  const showBikeActiveTags =
-    mode === 'bike' && !metrics && (walkOptions.preferGreen || walkOptions.preferQuiet);
-  const showStepFree = walkOptions.avoidSteps && (mode === 'foot' || mode === 'transit');
-
-  if (!showWalkMetrics && !showBikeActiveTags && !showStepFree) return null;
-
-  return (
-    <div className="flex items-center gap-3 text-xs font-medium text-[#444444] dark:text-[#cccccc] flex-wrap">
-      {mode === 'transit' && (
-        <span className="inline-flex items-center gap-1 text-[#686868] dark:text-[#999999]">
-          <Footprints className="w-3.5 h-3.5" />
-        </span>
-      )}
-      {metrics && (
-        <>
-          <span className="inline-flex items-center gap-1 tabular-nums">
-            <Trees className="w-3.5 h-3.5 text-[#007a3e] dark:text-[#34d399]" />
-            <strong className="font-semibold text-[#111111] dark:text-white">
-              {metrics.greenPercent}%
-            </strong>{' '}
-            {t.walkFilters.greenScore}
-          </span>
-          <span className="inline-flex items-center gap-1 tabular-nums">
-            <VolumeX className="w-3.5 h-3.5 text-[#686868] dark:text-[#999999]" />
-            <strong className="font-semibold text-[#111111] dark:text-white">
-              {metrics.quietPercent}%
-            </strong>{' '}
-            {t.walkFilters.quietScore}
-          </span>
-        </>
-      )}
-      {showBikeActiveTags && walkOptions.preferGreen && (
-        <span className="inline-flex items-center gap-1 text-[#111111] dark:text-white">
-          <Trees className="w-3.5 h-3.5 text-[#007a3e] dark:text-[#34d399]" />
-          {t.walkFilters.preferGreen}
-        </span>
-      )}
-      {showBikeActiveTags && walkOptions.preferQuiet && (
-        <span className="inline-flex items-center gap-1 text-[#111111] dark:text-white">
-          <VolumeX className="w-3.5 h-3.5 text-[#686868] dark:text-[#999999]" />
-          {t.walkFilters.preferQuiet}
-        </span>
-      )}
-      {showStepFree && (
-        <span className="inline-flex items-center gap-1 text-[#111111] dark:text-white">
-          <Accessibility className="w-3.5 h-3.5 text-[#686868] dark:text-[#999999]" />
-          {t.walkFilters.stepFree}
-        </span>
-      )}
-    </div>
-  );
-}
 
 function CountdownStatus({ isoTime, nowMs }: { isoTime?: string; nowMs: number }) {
   const lang = useNavStore((s) => s.lang);
@@ -199,16 +131,6 @@ function TransitSegmentRow({ segment }: { segment: TransitSegment }) {
             · {formatDuration(segment.durationSeconds, lang)}
             {segment.distanceMeters ? ` (${formatDistance(segment.distanceMeters, lang)})` : ''}
           </span>
-          {segment.walkMetrics && (
-            <span className="inline-flex items-center gap-2 ml-2 text-[11px] font-medium text-[#007a3e] dark:text-[#34d399] tabular-nums">
-              <span>
-                {segment.walkMetrics.greenPercent}% {t.walkFilters.greenScore}
-              </span>
-              <span className="text-[#686868] dark:text-[#999999]">
-                {segment.walkMetrics.quietPercent}% {t.walkFilters.quietScore}
-              </span>
-            </span>
-          )}
         </div>
       </button>
     );
@@ -349,7 +271,6 @@ interface RouteResultsProps {
 export function RouteResults({ hideSummaryCard = false }: RouteResultsProps = {}) {
   const lang = useNavStore((s) => s.lang);
   const mode = useNavStore((s) => s.mode);
-  const walkOptions = useNavStore((s) => s.walkOptions);
   const waypoints = useNavStore((s) => s.waypoints);
   const roadRoute = useNavStore((s) => s.roadRoute);
   const transitPlan = useNavStore((s) => s.transitPlan);
@@ -395,12 +316,10 @@ export function RouteResults({ hideSummaryCard = false }: RouteResultsProps = {}
     const firstItin = firstLeg?.alternatives[firstLeg.selectedIndex];
     const lastItin = lastLeg?.alternatives[lastLeg.selectedIndex];
 
-    const hasTransitQuality = Boolean(transitPlan.walkMetrics || walkOptions.avoidSteps);
-
     return (
       <div className="space-y-3">
         {/* Flat SBB Timetable Summary Card (shown on desktop; mobile uses sticky sheet header) */}
-        {!hideSummaryCard ? (
+        {!hideSummaryCard && (
           <div className="p-3.5 rounded-lg bg-white dark:bg-[#212121] border border-[#dcdcdc] dark:border-[#333333]">
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1 min-w-0">
@@ -449,28 +368,8 @@ export function RouteResults({ hideSummaryCard = false }: RouteResultsProps = {}
                 <span>{liveFollowActive ? t.liveFollowStop : t.liveFollowStart}</span>
               </button>
             </div>
-
-            {hasTransitQuality && (
-              <div className="mt-2.5 pt-2.5 border-t border-[#ececec] dark:border-[#2e2e2e]">
-                <RouteQualityBadges
-                  mode="transit"
-                  metrics={transitPlan.walkMetrics}
-                  walkOptions={walkOptions}
-                  t={t}
-                />
-              </div>
-            )}
           </div>
-        ) : hasTransitQuality ? (
-          <div className="px-3 py-2 rounded-lg bg-white dark:bg-[#212121] border border-[#dcdcdc] dark:border-[#333333]">
-            <RouteQualityBadges
-              mode="transit"
-              metrics={transitPlan.walkMetrics}
-              walkOptions={walkOptions}
-              t={t}
-            />
-          </div>
-        ) : null}
+        )}
 
         {/* Chained Legs */}
         <div className="space-y-3">
@@ -609,7 +508,7 @@ export function RouteResults({ hideSummaryCard = false }: RouteResultsProps = {}
 
     return (
       <div className="space-y-3">
-        {!hideSummaryCard ? (
+        {!hideSummaryCard && (
           <div className="p-3.5 rounded-lg bg-white dark:bg-[#212121] border border-[#dcdcdc] dark:border-[#333333]">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -641,31 +540,8 @@ export function RouteResults({ hideSummaryCard = false }: RouteResultsProps = {}
                 <span>{liveFollowActive ? t.liveFollowStop : t.liveFollowStart}</span>
               </button>
             </div>
-
-            {/* Calm Walk / Bike Quality Metrics Row */}
-            {((mode === 'foot' && (roadRoute.walkMetrics || walkOptions.avoidSteps)) ||
-              (mode === 'bike' && (walkOptions.preferGreen || walkOptions.preferQuiet))) && (
-              <div className="mt-2.5 pt-2.5 border-t border-[#ececec] dark:border-[#2e2e2e]">
-                <RouteQualityBadges
-                  mode={mode}
-                  metrics={roadRoute.walkMetrics}
-                  walkOptions={walkOptions}
-                  t={t}
-                />
-              </div>
-            )}
           </div>
-        ) : (mode === 'foot' && (roadRoute.walkMetrics || walkOptions.avoidSteps)) ||
-          (mode === 'bike' && (walkOptions.preferGreen || walkOptions.preferQuiet)) ? (
-          <div className="px-3 py-2 rounded-lg bg-white dark:bg-[#212121] border border-[#dcdcdc] dark:border-[#333333]">
-            <RouteQualityBadges
-              mode={mode}
-              metrics={roadRoute.walkMetrics}
-              walkOptions={walkOptions}
-              t={t}
-            />
-          </div>
-        ) : null}
+        )}
 
         {/* Turn-by-turn legs */}
         <div className="space-y-2">
