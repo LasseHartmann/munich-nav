@@ -25,6 +25,7 @@ import type {
   ThemeMode,
   TransitFilterKey,
   TransitPlanResult,
+  TransitTimeMode,
   TravelMode,
   WalkIntensity,
   WalkOptions,
@@ -109,7 +110,7 @@ interface NavStore {
   showStations: boolean;
 
   waypoints: Waypoint[];
-  departMode: 'now' | 'departAt';
+  departMode: TransitTimeMode;
   departAtLocal: string;
   transitFilters: TransitFilterKey[];
   walkOptions: WalkOptions;
@@ -167,8 +168,9 @@ interface NavStore {
   applyPlaceAs: (role: 'start' | 'stop' | 'end', place: PlaceResult) => void;
   loadDemoTrip: () => void;
 
-  setDepartMode: (dm: 'now' | 'departAt') => void;
+  setDepartMode: (dm: TransitTimeMode) => void;
   setDepartAtLocal: (val: string) => void;
+  setTransitSchedule: (dm: TransitTimeMode, localVal?: string) => void;
   toggleTransitFilter: (key: TransitFilterKey) => void;
   toggleWalkOption: (key: 'preferGreen' | 'preferQuiet' | 'avoidSteps') => void;
   setWalkIntensity: (intensity: WalkIntensity) => void;
@@ -569,7 +571,26 @@ export const useNavStore = create<NavStore>((set, get) => ({
   },
 
   setDepartAtLocal: (departAtLocal) => {
-    set({ departAtLocal, departMode: 'departAt', selectedTransitAlternatives: {} });
+    set((s) => ({
+      departAtLocal,
+      departMode: s.departMode === 'arriveBy' ? 'arriveBy' : 'departAt',
+      selectedTransitAlternatives: {},
+    }));
+    if (get().mode === 'transit' && get().waypoints.filter((w) => w.place).length >= 2) {
+      void get().calculateRoute({});
+    }
+  },
+
+  setTransitSchedule: (departMode, localVal) => {
+    set((s) => ({
+      departMode,
+      departAtLocal:
+        departMode === 'now'
+          ? toLocalDateTimeInputValue()
+          : localVal || s.departAtLocal || toLocalDateTimeInputValue(),
+      selectedTransitAlternatives: {},
+      highlighted: null,
+    }));
     if (get().mode === 'transit' && get().waypoints.filter((w) => w.place).length >= 2) {
       void get().calculateRoute({});
     }
@@ -618,10 +639,13 @@ export const useNavStore = create<NavStore>((set, get) => ({
 
   selectTransitAlternative: (legIndex, altIndex) => {
     const prev = get().selectedTransitAlternatives;
+    const isArriveBy = get().departMode === 'arriveBy';
     const next: Record<number, number> = {};
+    // Forward mode keeps earlier legs (< legIndex) and re-chains later legs;
+    // Arrive-by mode keeps later legs (> legIndex) anchored to the deadline and re-chains earlier legs backward!
     for (const [kStr, v] of Object.entries(prev)) {
       const k = Number(kStr);
-      if (k < legIndex) next[k] = v;
+      if (isArriveBy ? k > legIndex : k < legIndex) next[k] = v;
     }
     next[legIndex] = altIndex;
     set({ selectedTransitAlternatives: next, highlighted: null });
@@ -646,10 +670,10 @@ export const useNavStore = create<NavStore>((set, get) => ({
 
     try {
       if (state.mode === 'transit') {
-        const departureTime =
-          state.departMode === 'departAt'
-            ? berlinLocalToIso(state.departAtLocal)
-            : new Date().toISOString();
+        const isScheduled = state.departMode === 'departAt' || state.departMode === 'arriveBy';
+        const departureTime = isScheduled
+          ? berlinLocalToIso(state.departAtLocal)
+          : new Date().toISOString();
 
         const res = await fetch('/api/transit/plan', {
           method: 'POST',
@@ -664,6 +688,7 @@ export const useNavStore = create<NavStore>((set, get) => ({
               dwellMinutes: idx === 0 || idx === filled.length - 1 ? 0 : w.dwellMinutes,
             })),
             departureTime,
+            arriveBy: state.departMode === 'arriveBy',
             transitFilters: state.transitFilters,
             selectedAlternatives: overrideAlts ?? state.selectedTransitAlternatives,
           }),

@@ -20,7 +20,8 @@ interface PlanStopInput {
 
 interface TransitPlanRequestBody {
   stops: PlanStopInput[];
-  departureTime?: string; // ISO string
+  departureTime?: string; // ISO string — acts as arrival deadline when arriveBy is true
+  arriveBy?: boolean;
   transitFilters?: TransitFilterKey[];
   /** Optional map of legIndex -> selected alternative index */
   selectedAlternatives?: Record<number, number>;
@@ -172,18 +173,38 @@ function normalizeItinerary(raw: MotisItinerary, legIndex: number, altIndex: num
   };
 }
 
+function alignDirectWalkToArriveBy(itin: TransitItinerary, targetIso: string): TransitItinerary {
+  const targetMs = new Date(targetIso).getTime();
+  if (Number.isNaN(targetMs) || itin.durationSeconds <= 0) return itin;
+  const startIso = new Date(targetMs - itin.durationSeconds * 1000).toISOString();
+  const endIso = new Date(targetMs).toISOString();
+  return {
+    ...itin,
+    startTime: startIso,
+    endTime: endIso,
+    segments: itin.segments.map((seg) => ({
+      ...seg,
+      startTime: startIso,
+      scheduledStartTime: startIso,
+      endTime: endIso,
+      scheduledEndTime: endIso,
+    })),
+  };
+}
+
 async function fetchSingleTransitLeg(
   from: PlanStopInput,
   to: PlanStopInput,
-  departureIso: string,
+  targetIso: string,
+  arriveBy: boolean,
   transitModesParam: string,
   legIndex: number
 ): Promise<TransitItinerary[]> {
   const params = new URLSearchParams({
     fromPlace: `${from.lat.toFixed(6)},${from.lon.toFixed(6)}`,
     toPlace: `${to.lat.toFixed(6)},${to.lon.toFixed(6)}`,
-    time: departureIso,
-    arriveBy: 'false',
+    time: targetIso,
+    arriveBy: arriveBy ? 'true' : 'false',
     numItineraries: '4',
     transitModes: transitModesParam,
     pedestrianProfile: 'FOOT',
@@ -205,31 +226,45 @@ async function fetchSingleTransitLeg(
   const rawItineraries = data.itineraries || [];
   const rawDirect = data.direct || [];
 
-  const normalized: TransitItinerary[] = rawItineraries
+  let normalized: TransitItinerary[] = rawItineraries
     .filter((it) => Array.isArray(it.legs) && it.legs.length > 0)
     .map((it, idx) => normalizeItinerary(it, legIndex, idx));
 
-  // If stops are very close and transit returned no itineraries (or a quick walk beats transit), include direct walk
+  // Include direct walk when stops are close or transit returned nothing
   if (normalized.length === 0 && rawDirect.length > 0) {
-    const directWalk = normalizeItinerary(rawDirect[0], legIndex, 0);
+    let directWalk = normalizeItinerary(rawDirect[0], legIndex, 0);
+    if (arriveBy) directWalk = alignDirectWalkToArriveBy(directWalk, targetIso);
     normalized.push(directWalk);
   } else if (rawDirect.length > 0) {
     const walkCandidate = rawDirect[0];
-    // Include direct walk option if it's <= 20 min and faster than the fastest transit option
     if (
       typeof walkCandidate.duration === 'number' &&
       walkCandidate.duration <= 1200 &&
       normalized[0] &&
       walkCandidate.duration < normalized[0].durationSeconds
     ) {
-      normalized.unshift(normalizeItinerary(walkCandidate, legIndex, normalized.length));
+      let directWalk = normalizeItinerary(walkCandidate, legIndex, normalized.length);
+      if (arriveBy) directWalk = alignDirectWalkToArriveBy(directWalk, targetIso);
+      normalized.push(directWalk);
     }
   }
 
-  // Sort by arrival time so option 0 is the earliest arrival
-  normalized.sort((a, b) => new Date(a.endTime).getTime() - new Date(b.endTime).getTime());
+  if (arriveBy) {
+    // Prefer itineraries arriving on or before the target deadline (+60s grace)
+    const targetMs = new Date(targetIso).getTime();
+    const onTime = normalized.filter((it) => new Date(it.endTime).getTime() <= targetMs + 60_000);
+    if (onTime.length > 0) normalized = onTime;
 
-  // Re-label start/end fallback names for walking segments using user's actual stop names
+    // Sort DESCENDING by startTime so option 0 is the latest departure that still arrives on time!
+    normalized.sort((a, b) => {
+      const startDiff = new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
+      return startDiff !== 0 ? startDiff : a.durationSeconds - b.durationSeconds;
+    });
+  } else {
+    // Sort ASCENDING by arrival time so option 0 reaches the stop earliest
+    normalized.sort((a, b) => new Date(a.endTime).getTime() - new Date(b.endTime).getTime());
+  }
+
   return normalized.slice(0, 4).map((itin, idx) => ({
     ...itin,
     id: `leg-${legIndex}-alt-${idx}`,
@@ -245,7 +280,13 @@ async function fetchSingleTransitLeg(
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as TransitPlanRequestBody;
-    const { stops, departureTime, transitFilters, selectedAlternatives = {} } = body;
+    const {
+      stops,
+      departureTime,
+      arriveBy = false,
+      transitFilters,
+      selectedAlternatives = {},
+    } = body;
 
     if (!Array.isArray(stops) || stops.length < 2) {
       return NextResponse.json({ error: 'At least 2 stops are required' }, { status: 400 });
@@ -257,78 +298,161 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const baseDepartureDate = departureTime ? new Date(departureTime) : new Date();
-    const initialIso = Number.isNaN(baseDepartureDate.getTime())
+    const baseDate = departureTime ? new Date(departureTime) : new Date();
+    const initialIso = Number.isNaN(baseDate.getTime())
       ? new Date().toISOString()
-      : baseDepartureDate.toISOString();
+      : baseDate.toISOString();
 
     const transitModesParam = mapFiltersToMotisModes(transitFilters);
-    const legs: TransitMultiStopLeg[] = [];
-    let currentDepartureIso = initialIso;
+    const legCount = stops.length - 1;
+    const legs: TransitMultiStopLeg[] = new Array(legCount);
 
     let totalTravelSeconds = 0;
     let totalDwellSeconds = 0;
 
-    for (let i = 0; i < stops.length - 1; i++) {
-      const from = stops[i];
-      const to = stops[i + 1];
-      const isIntermediateDest = i < stops.length - 2;
-      const dwellAfterMinutes = isIntermediateDest ? Math.max(0, Math.round(to.dwellMinutes || 0)) : 0;
+    if (!arriveBy) {
+      // Forward chaining: Origin -> Stop 1 (+dwell) -> Stop 2 (+dwell) -> Destination
+      let currentDepartureIso = initialIso;
 
-      try {
-        const alternatives = await fetchSingleTransitLeg(
-          from,
-          to,
-          currentDepartureIso,
-          transitModesParam,
-          i
-        );
+      for (let i = 0; i < legCount; i++) {
+        const from = stops[i];
+        const to = stops[i + 1];
+        const isIntermediateDest = i < legCount - 1;
+        const dwellAfterMinutes = isIntermediateDest
+          ? Math.max(0, Math.round(to.dwellMinutes || 0))
+          : 0;
 
-        const requestedAlt = selectedAlternatives[i] ?? 0;
-        const selectedIndex =
-          alternatives.length > 0 ? Math.min(Math.max(0, requestedAlt), alternatives.length - 1) : 0;
-        const chosen = alternatives[selectedIndex];
+        try {
+          const alternatives = await fetchSingleTransitLeg(
+            from,
+            to,
+            currentDepartureIso,
+            false,
+            transitModesParam,
+            i
+          );
 
-        legs.push({
-          legIndex: i,
-          fromLabel: from.name,
-          toLabel: to.name,
-          fromCoord: [from.lon, from.lat],
-          toCoord: [to.lon, to.lat],
-          requestedDepartureTime: currentDepartureIso,
-          dwellAfterMinutes,
-          alternatives,
-          selectedIndex,
-          error: alternatives.length === 0 ? 'No transit connection found for this leg' : undefined,
-        });
+          const requestedAlt = selectedAlternatives[i] ?? 0;
+          const selectedIndex =
+            alternatives.length > 0
+              ? Math.min(Math.max(0, requestedAlt), alternatives.length - 1)
+              : 0;
+          const chosen = alternatives[selectedIndex];
 
-        if (chosen) {
-          totalTravelSeconds += chosen.durationSeconds;
-          if (isIntermediateDest) {
-            totalDwellSeconds += dwellAfterMinutes * 60;
+          legs[i] = {
+            legIndex: i,
+            fromLabel: from.name,
+            toLabel: to.name,
+            fromCoord: [from.lon, from.lat],
+            toCoord: [to.lon, to.lat],
+            requestedDepartureTime: currentDepartureIso,
+            dwellAfterMinutes,
+            alternatives,
+            selectedIndex,
+            error: alternatives.length === 0 ? 'No transit connection found for this leg' : undefined,
+          };
+
+          if (chosen) {
+            totalTravelSeconds += chosen.durationSeconds;
+            if (isIntermediateDest) totalDwellSeconds += dwellAfterMinutes * 60;
+            const arrivalMs = new Date(chosen.endTime).getTime();
+            if (!Number.isNaN(arrivalMs)) {
+              currentDepartureIso = new Date(arrivalMs + dwellAfterMinutes * 60_000).toISOString();
+            }
+          } else {
+            const curMs = new Date(currentDepartureIso).getTime();
+            currentDepartureIso = new Date(
+              curMs + (dwellAfterMinutes + 15) * 60_000
+            ).toISOString();
           }
-          const arrivalMs = new Date(chosen.endTime).getTime();
-          if (!Number.isNaN(arrivalMs)) {
-            currentDepartureIso = new Date(arrivalMs + dwellAfterMinutes * 60_000).toISOString();
-          }
-        } else {
-          // Advance clock gracefully by dwell time so subsequent legs can still be queried
-          const curMs = new Date(currentDepartureIso).getTime();
-          currentDepartureIso = new Date(curMs + (dwellAfterMinutes + 15) * 60_000).toISOString();
+        } catch (legErr) {
+          legs[i] = {
+            legIndex: i,
+            fromLabel: from.name,
+            toLabel: to.name,
+            fromCoord: [from.lon, from.lat],
+            toCoord: [to.lon, to.lat],
+            requestedDepartureTime: currentDepartureIso,
+            dwellAfterMinutes,
+            alternatives: [],
+            selectedIndex: 0,
+            error: legErr instanceof Error ? legErr.message : 'Leg routing failed',
+          };
         }
-      } catch (legErr) {
-        legs.push({
-          legIndex: i,
-          fromLabel: from.name,
-          toLabel: to.name,
-          fromCoord: [from.lon, from.lat],
-          toCoord: [to.lon, to.lat],
-          requestedDepartureTime: currentDepartureIso,
-          dwellAfterMinutes,
-          alternatives: [],
-          selectedIndex: 0,
-          error: legErr instanceof Error ? legErr.message : 'Leg routing failed',
-        });
+      }
+    } else {
+      // Backward chaining: Destination (arriveBy) <- Leg n-2 <- (-dwell) <- ... <- Origin
+      let currentTargetArrivalIso = initialIso;
+
+      for (let i = legCount - 1; i >= 0; i--) {
+        const from = stops[i];
+        const to = stops[i + 1];
+        const isIntermediateDest = i < legCount - 1;
+        const dwellAfterMinutes = isIntermediateDest
+          ? Math.max(0, Math.round(to.dwellMinutes || 0))
+          : 0;
+        // Dwell at `from` (stop i) before departing on leg i — subtracted to compute arrival deadline of leg i-1
+        const dwellBeforeThisLeg = i > 0 ? Math.max(0, Math.round(from.dwellMinutes || 0)) : 0;
+
+        try {
+          const alternatives = await fetchSingleTransitLeg(
+            from,
+            to,
+            currentTargetArrivalIso,
+            true,
+            transitModesParam,
+            i
+          );
+
+          const requestedAlt = selectedAlternatives[i] ?? 0;
+          const selectedIndex =
+            alternatives.length > 0
+              ? Math.min(Math.max(0, requestedAlt), alternatives.length - 1)
+              : 0;
+          const chosen = alternatives[selectedIndex];
+
+          legs[i] = {
+            legIndex: i,
+            fromLabel: from.name,
+            toLabel: to.name,
+            fromCoord: [from.lon, from.lat],
+            toCoord: [to.lon, to.lat],
+            requestedDepartureTime: chosen?.startTime || currentTargetArrivalIso,
+            dwellAfterMinutes,
+            alternatives,
+            selectedIndex,
+            error: alternatives.length === 0 ? 'No transit connection found for this leg' : undefined,
+          };
+
+          if (chosen) {
+            totalTravelSeconds += chosen.durationSeconds;
+            if (isIntermediateDest) totalDwellSeconds += dwellAfterMinutes * 60;
+            const startMs = new Date(chosen.startTime).getTime();
+            if (!Number.isNaN(startMs)) {
+              currentTargetArrivalIso = new Date(
+                startMs - dwellBeforeThisLeg * 60_000
+              ).toISOString();
+            }
+          } else {
+            const curMs = new Date(currentTargetArrivalIso).getTime();
+            currentTargetArrivalIso = new Date(
+              curMs - (dwellBeforeThisLeg + 15) * 60_000
+            ).toISOString();
+          }
+        } catch (legErr) {
+          legs[i] = {
+            legIndex: i,
+            fromLabel: from.name,
+            toLabel: to.name,
+            fromCoord: [from.lon, from.lat],
+            toCoord: [to.lon, to.lat],
+            requestedDepartureTime: currentTargetArrivalIso,
+            dwellAfterMinutes,
+            alternatives: [],
+            selectedIndex: 0,
+            error: legErr instanceof Error ? legErr.message : 'Leg routing failed',
+          };
+        }
       }
     }
 
@@ -345,7 +469,9 @@ export async function POST(req: NextRequest) {
     }
 
     const result: TransitPlanResult = {
-      departureTime: initialIso,
+      departureTime: firstChosen?.startTime || initialIso,
+      arriveBy,
+      targetTime: initialIso,
       totalDurationSeconds,
       totalTravelSeconds,
       totalDwellSeconds,

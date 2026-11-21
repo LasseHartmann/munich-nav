@@ -304,6 +304,7 @@ export function MobileBottomSheet() {
             {hasRoute && !stopsEditing ? (
               <div className="space-y-2">
                 <CompactTripBar />
+                {mode === 'transit' && <TransitOptionsBar />}
                 {mode === 'foot' && <WalkOptionsBar />}
               </div>
             ) : (

@@ -5,6 +5,8 @@ export type Language = 'en' | 'de';
 
 export type TransitFilterKey = 'SUBWAY' | 'SUBURBAN' | 'TRAM' | 'BUS' | 'REGIONAL';
 
+export type TransitTimeMode = 'now' | 'departAt' | 'arriveBy';
+
 export type WalkIntensity = 'balanced' | 'strong';
 
 export interface WalkOptions {
@@ -136,6 +138,8 @@ export interface TransitMultiStopLeg {
 
 export interface TransitPlanResult {
   departureTime: string;
+  arriveBy?: boolean;
+  targetTime?: string;
   totalDurationSeconds: number;
   totalTravelSeconds: number;
   totalDwellSeconds: number;

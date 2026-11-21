@@ -1,9 +1,13 @@
 'use client';
 
-import { Clock } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, Clock, Flag } from 'lucide-react';
+import { toLocalDateTimeInputValue } from '@/lib/geo';
+import { useNowTick } from '@/lib/useNowTick';
 import { useNavStore } from '@/store/useNavStore';
 import { getTranslations } from '@/lib/i18n';
 import type { TransitFilterKey } from '@/lib/types';
+import { TransitTimeMenu } from './TransitTimeMenu';
 
 const FILTER_PILLS: { key: TransitFilterKey; activeBg: string; dotColor: string }[] = [
   { key: 'SUBWAY', activeBg: '#0065ae', dotColor: '#0065ae' },
@@ -13,59 +17,80 @@ const FILTER_PILLS: { key: TransitFilterKey; activeBg: string; dotColor: string 
   { key: 'REGIONAL', activeBg: '#1e3a8a', dotColor: '#1e3a8a' },
 ];
 
+function formatScheduleLabel(
+  departMode: 'now' | 'departAt' | 'arriveBy',
+  departAtLocal: string,
+  nowMs: number,
+  t: ReturnType<typeof getTranslations>
+): string {
+  if (departMode === 'now') return t.leaveNow;
+
+  const [datePart, timePartRaw] = (departAtLocal || '').split('T');
+  const timePart = (timePartRaw || '').slice(0, 5) || '--:--';
+  const prefix = departMode === 'arriveBy' ? t.arriveShort : t.departShort;
+
+  if (nowMs > 0) {
+    const todayStr = toLocalDateTimeInputValue(new Date(nowMs)).split('T')[0];
+    const tomorrowStr = toLocalDateTimeInputValue(new Date(nowMs + 86_400_000)).split('T')[0];
+    if (!datePart || datePart === todayStr) {
+      return `${prefix} · ${timePart}`;
+    }
+    if (datePart === tomorrowStr) {
+      return `${prefix} · ${t.tomorrow} ${timePart}`;
+    }
+  } else if (!datePart) {
+    return `${prefix} · ${timePart}`;
+  }
+
+  const [, m, d] = datePart.split('-');
+  return `${prefix} · ${d}.${m}. ${timePart}`;
+}
+
 export function TransitOptionsBar() {
   const lang = useNavStore((s) => s.lang);
   const departMode = useNavStore((s) => s.departMode);
   const departAtLocal = useNavStore((s) => s.departAtLocal);
   const transitFilters = useNavStore((s) => s.transitFilters);
-  const setDepartMode = useNavStore((s) => s.setDepartMode);
-  const setDepartAtLocal = useNavStore((s) => s.setDepartAtLocal);
   const toggleTransitFilter = useNavStore((s) => s.toggleTransitFilter);
 
+  const nowMs = useNowTick();
+  const [menuOpen, setMenuOpen] = useState(false);
   const t = getTranslations(lang);
+
+  const scheduleLabel = formatScheduleLabel(departMode, departAtLocal, nowMs, t);
+
+  const triggerColorClass =
+    departMode === 'arriveBy'
+      ? 'bg-violet-600 border-violet-600 text-white shadow-xs'
+      : departMode === 'departAt'
+        ? 'bg-[#0065ae] border-[#0065ae] text-white shadow-xs'
+        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:border-[#0065ae]';
 
   return (
     <div className="space-y-2 pt-0.5">
-      {/* Departure time selector */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="inline-flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-1 text-xs font-bold border border-slate-200/80 dark:border-slate-700">
-          <button
-            type="button"
-            onClick={() => setDepartMode('now')}
-            className={`px-3 py-1.5 md:py-1 rounded-lg transition-all cursor-pointer ${
-              departMode === 'now'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            {t.leaveNow}
-          </button>
-          <button
-            type="button"
-            onClick={() => setDepartMode('departAt')}
-            className={`px-3 py-1.5 md:py-1 rounded-lg transition-all cursor-pointer inline-flex items-center gap-1.5 ${
-              departMode === 'departAt'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5" />
-            {t.departAt}
-          </button>
-        </div>
-
-        {departMode === 'departAt' && (
-          <input
-            type="datetime-local"
-            value={departAtLocal}
-            onChange={(e) => setDepartAtLocal(e.target.value)}
-            className="text-base md:text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0065ae]/40"
-          />
-        )}
-      </div>
-
-      {/* Chunky MVV Mode Filter Pills */}
+      {/* Proper Time Menu Trigger + MVV Filter Pills */}
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          data-testid="transit-time-trigger"
+          className={`inline-flex items-center gap-1.5 h-8 md:h-7 px-3 rounded-full text-xs md:text-[11px] font-extrabold border transition-all active:scale-95 shrink-0 cursor-pointer tabular-nums ${triggerColorClass}`}
+        >
+          {departMode === 'arriveBy' ? (
+            <Flag className="w-3.5 h-3.5 shrink-0" />
+          ) : (
+            <Clock
+              className={`w-3.5 h-3.5 shrink-0 ${
+                departMode === 'now' ? 'text-[#0065ae] dark:text-sky-400' : 'text-white'
+              }`}
+            />
+          )}
+          <span>{scheduleLabel}</span>
+          <ChevronDown className="w-3.5 h-3.5 opacity-80 shrink-0" />
+        </button>
+
+        <span className="w-px h-4 bg-slate-200 dark:bg-slate-700 shrink-0 mx-0.5" />
+
         {FILTER_PILLS.map(({ key, activeBg, dotColor }) => {
           const enabled = transitFilters.includes(key);
           return (
@@ -91,6 +116,9 @@ export function TransitOptionsBar() {
           );
         })}
       </div>
+
+      {/* Key resets internal draft state cleanly each time the menu opens */}
+      {menuOpen && <TransitTimeMenu open={menuOpen} onClose={() => setMenuOpen(false)} />}
     </div>
   );
 }

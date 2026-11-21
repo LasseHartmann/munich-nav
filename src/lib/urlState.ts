@@ -1,6 +1,7 @@
 import type {
   MapStyleMode,
   TransitFilterKey,
+  TransitTimeMode,
   TravelMode,
   WalkOptions,
   Waypoint,
@@ -10,7 +11,7 @@ export interface ShareableRouteState {
   mode: TravelMode;
   mapStyle: MapStyleMode;
   waypoints: Waypoint[];
-  departMode: 'now' | 'departAt';
+  departMode: TransitTimeMode;
   departAtLocal: string;
   transitFilters: TransitFilterKey[];
   walkOptions?: WalkOptions;
@@ -42,8 +43,11 @@ export function encodeRouteToQuery(state: ShareableRouteState): string {
     params.set('s', encodedStops.join('|'));
   }
 
-  if (state.departMode === 'departAt' && state.departAtLocal) {
+  if ((state.departMode === 'departAt' || state.departMode === 'arriveBy') && state.departAtLocal) {
     params.set('t', state.departAtLocal);
+    if (state.departMode === 'arriveBy') {
+      params.set('ab', '1');
+    }
   }
 
   if (state.transitFilters.length > 0 && state.transitFilters.length < 5) {
@@ -72,6 +76,7 @@ export function decodeRouteFromQuery(search: string): Partial<ShareableRouteStat
   const rawStyle = params.get('ms');
   const rawStops = params.get('s');
   const rawTime = params.get('t');
+  const rawArriveBy = params.get('ab');
   const rawFilters = params.get('tf');
   const rawWalkFilters = params.get('wf');
   const rawWalkIntensity = params.get('wi');
@@ -87,7 +92,7 @@ export function decodeRouteFromQuery(search: string): Partial<ShareableRouteStat
     result.mapStyle = rawStyle;
   }
   if (rawTime) {
-    result.departMode = 'departAt';
+    result.departMode = rawArriveBy === '1' ? 'arriveBy' : 'departAt';
     result.departAtLocal = rawTime;
   }
   if (rawFilters) {

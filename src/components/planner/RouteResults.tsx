@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  Flag,
   Footprints,
   Loader2,
   Navigation,
@@ -341,7 +342,14 @@ export function RouteResults() {
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-sky-100">
                   {t.totalTrip}
                 </span>
-                <CountdownChip isoTime={firstItin?.startTime} nowMs={nowMs} />
+                {transitPlan.arriveBy && transitPlan.targetTime ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold tabular-nums bg-violet-400/95 text-slate-950">
+                    <Flag className="w-3 h-3" />
+                    {t.arriveByBadge} {formatMunichTime(transitPlan.targetTime, lang)}
+                  </span>
+                ) : (
+                  <CountdownChip isoTime={firstItin?.startTime} nowMs={nowMs} />
+                )}
               </div>
 
               <div className="flex items-baseline gap-2.5 flex-wrap">
