@@ -1,52 +1,335 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, Clock, Flag, Minus, Plus, Radio, X } from 'lucide-react';
+import {
+  Calendar,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Flag,
+  Radio,
+  X,
+} from 'lucide-react';
 import { toLocalDateTimeInputValue } from '@/lib/geo';
 import { getTranslations } from '@/lib/i18n';
 import { useNowTick } from '@/lib/useNowTick';
 import { useNavStore } from '@/store/useNavStore';
-import type { TransitTimeMode } from '@/lib/types';
+import type { Language, TransitTimeMode } from '@/lib/types';
 
 interface TransitTimeMenuProps {
   open: boolean;
   onClose: () => void;
 }
 
-function getBerlinDatePart(baseMs: number, offsetDays = 0): string {
-  const d = new Date(baseMs + offsetDays * 86_400_000);
-  return toLocalDateTimeInputValue(d).split('T')[0];
-}
+const ITEM_HEIGHT = 44; // px per wheel row (5 visible rows = 220px)
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
-function splitDateTime(val: string): { date: string; time: string } {
+function splitDateTime(val: string): { date: string; hour: number; minute: number } {
   const fallback = toLocalDateTimeInputValue();
-  const [date, time] = (val && val.includes('T') ? val : fallback).split('T');
+  const [date, timeRaw] = (val && val.includes('T') ? val : fallback).split('T');
+  const [hStr, mStr] = (timeRaw || fallback.split('T')[1]).split(':');
   return {
     date: date || fallback.split('T')[0],
-    time: (time || fallback.split('T')[1]).slice(0, 5),
+    hour: Math.min(23, Math.max(0, Number(hStr) || 0)),
+    minute: Math.min(59, Math.max(0, Number(mStr) || 0)),
   };
 }
 
-function addMinutesToLocal(dateStr: string, timeStr: string, deltaMin: number): { date: string; time: string } {
+function getBerlinDatePart(baseMs: number, offsetDays = 0): string {
+  return toLocalDateTimeInputValue(new Date(baseMs + offsetDays * 86_400_000)).split('T')[0];
+}
+
+function shiftDateString(dateStr: string, deltaDays: number): string {
   const [y, m, d] = dateStr.split('-').map(Number);
-  const [hh, mm] = timeStr.split(':').map(Number);
-  if (!y || !m || !d) return splitDateTime(toLocalDateTimeInputValue());
-  const utc = new Date(Date.UTC(y, m - 1, d, hh || 0, (mm || 0) + deltaMin));
+  if (!y || !m || !d) return dateStr;
+  const dt = new Date(Date.UTC(y, m - 1, d + deltaDays));
   const pad = (n: number) => String(n).padStart(2, '0');
-  return {
-    date: `${utc.getUTCFullYear()}-${pad(utc.getUTCMonth() + 1)}-${pad(utc.getUTCDate())}`,
-    time: `${pad(utc.getUTCHours())}:${pad(utc.getUTCMinutes())}`,
-  };
+  return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
 }
 
-const QUICK_OFFSETS = [
-  { label: '+15m', minutes: 15 },
-  { label: '+30m', minutes: 30 },
-  { label: '+1h', minutes: 60 },
-  { label: '+2h', minutes: 120 },
-  { label: '+3h', minutes: 180 },
-];
+function formatReadableDate(
+  dateStr: string,
+  todayStr: string,
+  tomorrowStr: string,
+  lang: Language,
+  t: ReturnType<typeof getTranslations>
+): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!y || !m || !d) return dateStr;
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0));
+  const formatted = new Intl.DateTimeFormat(lang === 'de' ? 'de-DE' : 'en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(dt);
+
+  if (dateStr === todayStr) return `${t.today} · ${formatted}`;
+  if (dateStr === tomorrowStr) return `${t.tomorrow} · ${formatted}`;
+  return formatted;
+}
+
+interface WheelColumnProps {
+  items: string[];
+  selectedIndex: number;
+  onChange: (index: number) => void;
+  ariaLabel: string;
+  testId: string;
+  accentTextClass: string;
+}
+
+function ScrollWheelColumn({
+  items,
+  selectedIndex,
+  onChange,
+  ariaLabel,
+  testId,
+  accentTextClass,
+}: WheelColumnProps) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(false);
+  const isProgrammaticRef = useRef(false);
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastCommittedRef = useRef(selectedIndex);
+
+  // Sync scroll position ONLY on initial mount or external programmatic changes (never interrupt user momentum scroll!)
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const isInitial = !mountedRef.current;
+    mountedRef.current = true;
+
+    if (!isInitial && selectedIndex === lastCommittedRef.current) {
+      return;
+    }
+
+    lastCommittedRef.current = selectedIndex;
+    const targetTop = selectedIndex * ITEM_HEIGHT;
+    isProgrammaticRef.current = true;
+    el.scrollTop = targetTop;
+    const id = setTimeout(() => {
+      isProgrammaticRef.current = false;
+    }, 100);
+    return () => clearTimeout(id);
+  }, [selectedIndex]);
+
+  useEffect(() => {
+    return () => {
+      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+    };
+  }, []);
+
+  const handleScroll = () => {
+    const el = listRef.current;
+    if (!el || isProgrammaticRef.current) return;
+
+    const rawIdx = Math.round(el.scrollTop / ITEM_HEIGHT);
+    const clamped = Math.min(items.length - 1, Math.max(0, rawIdx));
+
+    if (clamped !== lastCommittedRef.current) {
+      lastCommittedRef.current = clamped;
+      onChange(clamped);
+    }
+
+    if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+    settleTimerRef.current = setTimeout(() => {
+      if (!listRef.current) return;
+      const snappedIdx = Math.min(
+        items.length - 1,
+        Math.max(0, Math.round(listRef.current.scrollTop / ITEM_HEIGHT))
+      );
+      if (snappedIdx !== lastCommittedRef.current) {
+        lastCommittedRef.current = snappedIdx;
+        onChange(snappedIdx);
+      }
+    }, 80);
+  };
+
+  const handleItemClick = (idx: number) => {
+    const el = listRef.current;
+    lastCommittedRef.current = idx;
+    onChange(idx);
+    if (el) {
+      isProgrammaticRef.current = true;
+      el.scrollTo({ top: idx * ITEM_HEIGHT, behavior: 'smooth' });
+      setTimeout(() => {
+        isProgrammaticRef.current = false;
+      }, 280);
+    }
+  };
+
+  return (
+    <div
+      ref={listRef}
+      data-testid={testId}
+      role="listbox"
+      aria-label={ariaLabel}
+      onScroll={handleScroll}
+      style={{ height: `${ITEM_HEIGHT * 5}px` }}
+      className="relative flex-1 overflow-y-auto snap-y snap-mandatory no-scrollbar touch-pan-y overscroll-contain"
+    >
+      {/* Top & bottom spacer padding so first & last items snap cleanly into center band */}
+      <div style={{ height: `${ITEM_HEIGHT * 2}px` }} aria-hidden="true" />
+      {items.map((label, idx) => {
+        const dist = Math.abs(idx - selectedIndex);
+        const isSelected = dist === 0;
+        return (
+          <button
+            key={label}
+            type="button"
+            role="option"
+            aria-selected={isSelected}
+            onClick={() => handleItemClick(idx)}
+            style={{ height: `${ITEM_HEIGHT}px` }}
+            className={`w-full snap-center flex items-center justify-center font-mono tabular-nums transition-all cursor-pointer select-none ${
+              isSelected
+                ? `text-2xl font-extrabold ${accentTextClass}`
+                : dist === 1
+                  ? 'text-lg font-bold text-slate-500 dark:text-slate-400'
+                  : 'text-base font-semibold text-slate-300 dark:text-slate-600'
+            }`}
+          >
+            {label}
+          </button>
+        );
+      })}
+      <div style={{ height: `${ITEM_HEIGHT * 2}px` }} aria-hidden="true" />
+    </div>
+  );
+}
+
+interface CalendarPickerProps {
+  selectedDate: string;
+  todayStr: string;
+  lang: Language;
+  accentBgClass: string;
+  onSelect: (dateStr: string) => void;
+}
+
+function StandardCalendarGrid({
+  selectedDate,
+  todayStr,
+  lang,
+  accentBgClass,
+  onSelect,
+}: CalendarPickerProps) {
+  const [initYear, initMonth] = selectedDate.split('-').map(Number);
+  const [viewYear, setViewYear] = useState(initYear || 2026);
+  const [viewMonth, setViewMonth] = useState((initMonth || 1) - 1); // 0-indexed
+
+  const weekdays =
+    lang === 'de'
+      ? ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+      : ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+
+  const monthLabel = useMemo(() => {
+    const dt = new Date(Date.UTC(viewYear, viewMonth, 15));
+    return new Intl.DateTimeFormat(lang === 'de' ? 'de-DE' : 'en-GB', {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(dt);
+  }, [viewYear, viewMonth, lang]);
+
+  const calendarCells = useMemo(() => {
+    const firstDayUtc = new Date(Date.UTC(viewYear, viewMonth, 1));
+    // Monday = 0 .. Sunday = 6
+    const startOffset = (firstDayUtc.getUTCDay() + 6) % 7;
+    const daysInMonth = new Date(Date.UTC(viewYear, viewMonth + 1, 0)).getUTCDate();
+    const pad = (n: number) => String(n).padStart(2, '0');
+
+    const cells: ({ day: number; dateStr: string } | null)[] = [];
+    for (let i = 0; i < startOffset; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push({
+        day: d,
+        dateStr: `${viewYear}-${pad(viewMonth + 1)}-${pad(d)}`,
+      });
+    }
+    return cells;
+  }, [viewYear, viewMonth]);
+
+  const stepMonth = (delta: number) => {
+    const next = new Date(Date.UTC(viewYear, viewMonth + delta, 1));
+    setViewYear(next.getUTCFullYear());
+    setViewMonth(next.getUTCMonth());
+  };
+
+  return (
+    <div
+      data-testid="standard-calendar"
+      className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/70 p-3 space-y-2.5"
+    >
+      {/* Month navigation */}
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => stepMonth(-1)}
+          aria-label="Previous month"
+          className="w-8 h-8 rounded-xl inline-flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 active:scale-90 cursor-pointer"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+
+        <span className="text-sm font-extrabold text-slate-900 dark:text-white capitalize">
+          {monthLabel}
+        </span>
+
+        <button
+          type="button"
+          onClick={() => stepMonth(1)}
+          aria-label="Next month"
+          className="w-8 h-8 rounded-xl inline-flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 active:scale-90 cursor-pointer"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Weekday headers */}
+      <div className="grid grid-cols-7 gap-1 text-center">
+        {weekdays.map((wd) => (
+          <div
+            key={wd}
+            className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 py-0.5"
+          >
+            {wd}
+          </div>
+        ))}
+      </div>
+
+      {/* Days grid */}
+      <div className="grid grid-cols-7 gap-1 text-center">
+        {calendarCells.map((cell, idx) => {
+          if (!cell) return <div key={`empty-${idx}`} className="h-9" />;
+          const isSelected = cell.dateStr === selectedDate;
+          const isToday = cell.dateStr === todayStr;
+          const isPast = Boolean(todayStr) && cell.dateStr < todayStr;
+          return (
+            <button
+              key={cell.dateStr}
+              type="button"
+              onClick={() => onSelect(cell.dateStr)}
+              className={`h-9 w-9 mx-auto rounded-full text-xs font-extrabold tabular-nums transition-all active:scale-90 cursor-pointer flex items-center justify-center ${
+                isSelected
+                  ? `${accentBgClass} text-white shadow-sm`
+                  : isToday
+                    ? 'bg-sky-100 dark:bg-sky-950 text-[#0065ae] dark:text-sky-300 ring-1 ring-[#0065ae]/40'
+                    : isPast
+                      ? 'text-slate-400 dark:text-slate-600 hover:bg-slate-200/60 dark:hover:bg-slate-700/60'
+                      : 'text-slate-800 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-700'
+              }`}
+            >
+              {cell.day}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export function TransitTimeMenu({ open, onClose }: TransitTimeMenuProps) {
   const lang = useNavStore((s) => s.lang);
@@ -58,7 +341,9 @@ export function TransitTimeMenu({ open, onClose }: TransitTimeMenuProps) {
 
   const [draftMode, setDraftMode] = useState<TransitTimeMode>(departMode);
   const [draftDate, setDraftDate] = useState(() => splitDateTime(departAtLocal).date);
-  const [draftTime, setDraftTime] = useState(() => splitDateTime(departAtLocal).time);
+  const [draftHour, setDraftHour] = useState(() => splitDateTime(departAtLocal).hour);
+  const [draftMinute, setDraftMinute] = useState(() => splitDateTime(departAtLocal).minute);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   // Close cleanly on Escape key
   useEffect(() => {
@@ -74,50 +359,48 @@ export function TransitTimeMenu({ open, onClose }: TransitTimeMenuProps) {
 
   const todayStr = nowMs > 0 ? getBerlinDatePart(nowMs, 0) : draftDate;
   const tomorrowStr = nowMs > 0 ? getBerlinDatePart(nowMs, 1) : '';
-  const isToday = draftDate === todayStr;
-  const isTomorrow = Boolean(tomorrowStr) && draftDate === tomorrowStr;
+  const pad = (n: number) => String(n).padStart(2, '0');
 
   const handleModeSwitch = (nextMode: TransitTimeMode) => {
     setDraftMode(nextMode);
-    // When switching from "now" to "arriveBy", default to +1 hr so it's immediately practical
-    const baseMs = nowMs || new Date(`${draftDate}T${draftTime}:00`).getTime();
-    if (draftMode === 'now' && nextMode === 'arriveBy') {
-      const plusHour = splitDateTime(toLocalDateTimeInputValue(new Date(baseMs + 60 * 60_000)));
-      setDraftDate(plusHour.date);
-      setDraftTime(plusHour.time);
-    } else if (draftMode === 'now' && nextMode === 'departAt') {
-      const plus15 = splitDateTime(toLocalDateTimeInputValue(new Date(baseMs + 15 * 60_000)));
-      setDraftDate(plus15.date);
-      setDraftTime(plus15.time);
+    if (nextMode === 'now') {
+      setCalendarOpen(false);
+      return;
     }
-  };
-
-  const handleStep = (deltaMin: number) => {
-    const next = addMinutesToLocal(draftDate, draftTime, deltaMin);
-    setDraftDate(next.date);
-    setDraftTime(next.time);
-  };
-
-  const handleQuickOffset = (minutes: number) => {
-    const baseMs = nowMs || new Date(`${draftDate}T${draftTime}:00`).getTime();
-    const target = splitDateTime(toLocalDateTimeInputValue(new Date(baseMs + minutes * 60_000)));
-    setDraftDate(target.date);
-    setDraftTime(target.time);
+    const baseMs = nowMs || new Date(`${draftDate}T${pad(draftHour)}:${pad(draftMinute)}:00`).getTime();
+    if (draftMode === 'now' && nextMode === 'arriveBy') {
+      const target = splitDateTime(toLocalDateTimeInputValue(new Date(baseMs + 60 * 60_000)));
+      setDraftDate(target.date);
+      setDraftHour(target.hour);
+      setDraftMinute(target.minute);
+    } else if (draftMode === 'now' && nextMode === 'departAt') {
+      const target = splitDateTime(toLocalDateTimeInputValue(new Date(baseMs + 15 * 60_000)));
+      setDraftDate(target.date);
+      setDraftHour(target.hour);
+      setDraftMinute(target.minute);
+    }
   };
 
   const handleApply = () => {
     if (draftMode === 'now') {
       setTransitSchedule('now');
     } else {
-      setTransitSchedule(draftMode, `${draftDate}T${draftTime}`);
+      setTransitSchedule(draftMode, `${draftDate}T${pad(draftHour)}:${pad(draftMinute)}`);
     }
     onClose();
   };
 
-  const modeAccent =
-    draftMode === 'arriveBy'
-      ? 'bg-violet-600 hover:bg-violet-700 shadow-violet-600/25'
-      : 'bg-[#0065ae] hover:bg-[#005494] shadow-[#0065ae]/25';
+  const isArrive = draftMode === 'arriveBy';
+  const accentBg = isArrive ? 'bg-violet-600' : 'bg-[#0065ae]';
+  const accentBtn = isArrive
+    ? 'bg-violet-600 hover:bg-violet-700 shadow-violet-600/25'
+    : 'bg-[#0065ae] hover:bg-[#005494] shadow-[#0065ae]/25';
+  const accentText = isArrive
+    ? 'text-violet-700 dark:text-violet-300'
+    : 'text-[#0065ae] dark:text-sky-300';
+  const centerBandClass = isArrive
+    ? 'bg-violet-500/12 dark:bg-violet-500/20 border-violet-500/30'
+    : 'bg-[#0065ae]/10 dark:bg-sky-500/18 border-[#0065ae]/25';
 
   return createPortal(
     <div
@@ -129,21 +412,15 @@ export function TransitTimeMenu({ open, onClose }: TransitTimeMenuProps) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full md:max-w-[400px] rounded-t-[28px] md:rounded-[26px] bg-white dark:bg-[#0f172a] border-t-2 md:border-2 border-slate-200/90 dark:border-slate-700/80 shadow-2xl overflow-hidden pb-safe-lg md:pb-5"
+        className="w-full md:max-w-[400px] max-h-[90dvh] flex flex-col rounded-t-[28px] md:rounded-[26px] bg-white dark:bg-[#0f172a] border-t-2 md:border-2 border-slate-200/90 dark:border-slate-700/80 shadow-2xl overflow-hidden"
       >
         {/* Header */}
-        <div className="px-5 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+        <div className="px-5 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-2.5">
             <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-xs ${
-                draftMode === 'arriveBy' ? 'bg-violet-600' : 'bg-[#0065ae]'
-              }`}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-xs ${accentBg}`}
             >
-              {draftMode === 'arriveBy' ? (
-                <Flag className="w-4.5 h-4.5" />
-              ) : (
-                <Clock className="w-4.5 h-4.5" />
-              )}
+              {isArrive ? <Flag className="w-4.5 h-4.5" /> : <Clock className="w-4.5 h-4.5" />}
             </div>
             <h2 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
               {t.timeMenuTitle}
@@ -160,7 +437,7 @@ export function TransitTimeMenu({ open, onClose }: TransitTimeMenuProps) {
           </button>
         </div>
 
-        <div className="px-5 pt-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-5 pt-4 pb-safe-lg md:pb-5 space-y-4">
           {/* 3-Way Segmented Mode Control: Leave now | Depart at | Arrive by */}
           <div
             role="tablist"
@@ -224,98 +501,101 @@ export function TransitTimeMenu({ open, onClose }: TransitTimeMenuProps) {
             </div>
           ) : (
             <div className="space-y-3.5">
-              {/* Day Selector: Today | Tomorrow | Custom Date */}
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setDraftDate(todayStr)}
-                  className={`h-10 rounded-xl text-xs font-extrabold border-2 transition-all active:scale-95 cursor-pointer ${
-                    isToday
-                      ? 'border-[#0065ae] bg-sky-50 dark:bg-sky-950/50 text-[#0065ae] dark:text-sky-300'
-                      : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200'
-                  }`}
-                >
-                  {t.today}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setDraftDate(tomorrowStr)}
-                  className={`h-10 rounded-xl text-xs font-extrabold border-2 transition-all active:scale-95 cursor-pointer ${
-                    isTomorrow
-                      ? 'border-[#0065ae] bg-sky-50 dark:bg-sky-950/50 text-[#0065ae] dark:text-sky-300'
-                      : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200'
-                  }`}
-                >
-                  {t.tomorrow}
-                </button>
-
-                <label
-                  className={`relative h-10 rounded-xl text-xs font-extrabold border-2 flex items-center justify-center gap-1 px-2 cursor-pointer overflow-hidden ${
-                    !isToday && !isTomorrow
-                      ? 'border-[#0065ae] bg-sky-50 dark:bg-sky-950/50 text-[#0065ae] dark:text-sky-300'
-                      : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200'
-                  }`}
-                >
-                  <Calendar className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">
-                    {!isToday && !isTomorrow ? draftDate.slice(5) : t.customDate}
-                  </span>
-                  <input
-                    type="date"
-                    value={draftDate}
-                    onChange={(e) => {
-                      if (e.target.value) setDraftDate(e.target.value);
-                    }}
-                    aria-label={t.customDate}
-                    className="absolute inset-0 opacity-0 cursor-pointer text-base"
-                  />
-                </label>
-              </div>
-
-              {/* Chunky Time Stepper (-15m | HH:mm | +15m) */}
+              {/* Standard Google Maps–style Date Picker Bar */}
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => handleStep(-15)}
-                  className="h-13 px-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-extrabold text-xs inline-flex items-center gap-1 active:scale-95 transition-all cursor-pointer shrink-0"
+                  onClick={() => setDraftDate((d) => shiftDateString(d, -1))}
+                  aria-label="Previous day"
+                  className="w-11 h-11 rounded-2xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 inline-flex items-center justify-center active:scale-90 cursor-pointer shrink-0"
                 >
-                  <Minus className="w-3.5 h-3.5" />
-                  <span>15m</span>
+                  <ChevronLeft className="w-4.5 h-4.5" />
                 </button>
-
-                <input
-                  type="time"
-                  value={draftTime}
-                  onChange={(e) => {
-                    if (e.target.value) setDraftTime(e.target.value.slice(0, 5));
-                  }}
-                  aria-label={draftMode === 'arriveBy' ? t.arriveBy : t.departAt}
-                  className="flex-1 min-w-0 h-13 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 text-center text-xl font-mono font-extrabold tabular-nums text-slate-900 dark:text-white focus:outline-none focus:border-[#0065ae]"
-                />
 
                 <button
                   type="button"
-                  onClick={() => handleStep(15)}
-                  className="h-13 px-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-extrabold text-xs inline-flex items-center gap-1 active:scale-95 transition-all cursor-pointer shrink-0"
+                  data-testid="date-picker-toggle"
+                  onClick={() => setCalendarOpen((v) => !v)}
+                  className={`flex-1 min-w-0 h-11 px-3.5 rounded-2xl border-2 inline-flex items-center justify-center gap-2 text-sm font-extrabold transition-all active:scale-[0.98] cursor-pointer ${
+                    calendarOpen
+                      ? 'border-[#0065ae] bg-sky-50/70 dark:bg-sky-950/40 text-slate-900 dark:text-white'
+                      : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 text-slate-900 dark:text-white'
+                  }`}
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>15m</span>
+                  <Calendar className="w-4 h-4 text-[#0065ae] dark:text-sky-400 shrink-0" />
+                  <span className="truncate">
+                    {formatReadableDate(draftDate, todayStr, tomorrowStr, lang, t)}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-400 transition-transform shrink-0 ${
+                      calendarOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDraftDate((d) => shiftDateString(d, 1))}
+                  aria-label="Next day"
+                  className="w-11 h-11 rounded-2xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 inline-flex items-center justify-center active:scale-90 cursor-pointer shrink-0"
+                >
+                  <ChevronRight className="w-4.5 h-4.5" />
                 </button>
               </div>
 
-              {/* Quick Relative Offset Pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                {QUICK_OFFSETS.map((item) => (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={() => handleQuickOffset(item.minutes)}
-                    className="flex-1 min-w-[56px] h-9 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-extrabold text-slate-700 dark:text-slate-200 active:scale-95 transition-all cursor-pointer"
+              {/* Expandable Standard Month Calendar Grid */}
+              {calendarOpen && (
+                <StandardCalendarGrid
+                  key={draftDate.slice(0, 7)}
+                  selectedDate={draftDate}
+                  todayStr={todayStr}
+                  lang={lang}
+                  accentBgClass={accentBg}
+                  onSelect={(d) => {
+                    setDraftDate(d);
+                    setCalendarOpen(false);
+                  }}
+                />
+              )}
+
+              {/* Scrollable Drum/Wheel Time Picker (Google Maps / iOS style) */}
+              <div className="relative rounded-2xl border border-slate-200/90 dark:border-slate-700/80 bg-white dark:bg-[#0f172a] overflow-hidden">
+                {/* Highlighted Center Selection Band */}
+                <div
+                  style={{ height: `${ITEM_HEIGHT}px` }}
+                  className={`pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-xl border ${centerBandClass}`}
+                />
+
+                {/* Top & bottom soft fade gradients */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white via-white/80 to-transparent dark:from-[#0f172a] dark:via-[#0f172a]/80 z-10" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white via-white/80 to-transparent dark:from-[#0f172a] dark:via-[#0f172a]/80 z-10" />
+
+                <div className="relative flex items-center px-6">
+                  <ScrollWheelColumn
+                    items={HOURS}
+                    selectedIndex={draftHour}
+                    onChange={setDraftHour}
+                    ariaLabel="Hours"
+                    testId="wheel-hours"
+                    accentTextClass={accentText}
+                  />
+
+                  <span
+                    aria-hidden="true"
+                    className={`px-2 text-2xl font-mono font-extrabold select-none z-20 ${accentText}`}
                   >
-                    {item.label}
-                  </button>
-                ))}
+                    :
+                  </span>
+
+                  <ScrollWheelColumn
+                    items={MINUTES}
+                    selectedIndex={draftMinute}
+                    onChange={setDraftMinute}
+                    ariaLabel="Minutes"
+                    testId="wheel-minutes"
+                    accentTextClass={accentText}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -324,7 +604,7 @@ export function TransitTimeMenu({ open, onClose }: TransitTimeMenuProps) {
           <button
             type="button"
             onClick={handleApply}
-            className={`w-full h-12 rounded-2xl text-sm font-extrabold text-white shadow-lg active:scale-[0.98] transition-all cursor-pointer ${modeAccent}`}
+            className={`w-full h-12 rounded-2xl text-sm font-extrabold text-white shadow-lg active:scale-[0.98] transition-all cursor-pointer ${accentBtn}`}
           >
             {draftMode === 'now' ? t.leaveNow : t.applyTime}
           </button>
