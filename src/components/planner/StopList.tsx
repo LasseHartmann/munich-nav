@@ -298,6 +298,29 @@ export function StopList({ variant = 'desktop' }: StopListProps) {
 
           {isTransit && <TransitTimeTrigger />}
 
+          {variant === 'mobile' && filledCount >= 2 && (
+            <button
+              type="button"
+              data-testid="mobile-share-btn"
+              onClick={handleShare}
+              className="inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium text-[#111111] dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              title={t.shareLink}
+              aria-label={t.shareLink}
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-[#007a3e] dark:text-[#34d399]" />
+                  <span className="text-[#007a3e] dark:text-[#34d399]">{t.linkCopied}</span>
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-3.5 h-3.5 text-[#686868] dark:text-[#999999]" />
+                  <span>{t.shareLink}</span>
+                </>
+              )}
+            </button>
+          )}
+
           {isMultiStop && (
             <button
               type="button"
@@ -327,30 +350,8 @@ export function StopList({ variant = 'desktop' }: StopListProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
-          {variant === 'mobile' && filledCount >= 2 && (
-            <button
-              type="button"
-              onClick={handleShare}
-              className="inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium text-[#555555] hover:text-[#111111] hover:bg-black/5 dark:text-[#b0b0b0] dark:hover:text-white transition-colors cursor-pointer"
-              title={t.shareLink}
-              aria-label={t.shareLink}
-            >
-              {copied ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-[#007a3e] dark:text-[#34d399]" />
-                  <span className="text-[#007a3e] dark:text-[#34d399]">{t.linkCopied}</span>
-                </>
-              ) : (
-                <>
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>{t.shareLink}</span>
-                </>
-              )}
-            </button>
-          )}
-
-          {variant === 'desktop' && filledCount > 0 && (
+        {variant === 'desktop' && filledCount > 0 && (
+          <div className="flex items-center gap-1 shrink-0">
             <button
               type="button"
               onClick={clearRoute}
@@ -359,8 +360,8 @@ export function StopList({ variant = 'desktop' }: StopListProps) {
               <Trash2 className="w-3.5 h-3.5" />
               <span>{t.clearRoute}</span>
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Scrollable Wheel Picker Modal for Stay Duration */}
