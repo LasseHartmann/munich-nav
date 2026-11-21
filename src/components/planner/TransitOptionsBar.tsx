@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, Clock, Flag, Footprints } from 'lucide-react';
+import { ChevronDown, Clock, Flag } from 'lucide-react';
 import { toLocalDateTimeInputValue } from '@/lib/geo';
 import { useNowTick } from '@/lib/useNowTick';
 import { useNavStore } from '@/store/useNavStore';
@@ -10,13 +10,7 @@ import type { TransitFilterKey } from '@/lib/types';
 import { TransitTimeMenu } from './TransitTimeMenu';
 import { WalkFilterChips } from './WalkOptionsBar';
 
-const FILTER_PILLS: { key: TransitFilterKey; dotColor: string }[] = [
-  { key: 'SUBWAY', dotColor: '#0065ae' },
-  { key: 'SUBURBAN', dotColor: '#008e4e' },
-  { key: 'TRAM', dotColor: '#e30613' },
-  { key: 'BUS', dotColor: '#00586a' },
-  { key: 'REGIONAL', dotColor: '#1e3a8a' },
-];
+const FILTER_KEYS: TransitFilterKey[] = ['SUBWAY', 'SUBURBAN', 'TRAM', 'BUS', 'REGIONAL'];
 
 function formatScheduleLabel(
   departMode: 'now' | 'departAt' | 'arriveBy',
@@ -101,26 +95,19 @@ export function TransitOptionsBar() {
         data-testid="transit-type-filters-row"
         className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible pb-0.5"
       >
-        {FILTER_PILLS.map(({ key, dotColor }) => {
+        {FILTER_KEYS.map((key) => {
           const enabled = transitFilters.includes(key);
           return (
             <button
               key={key}
               type="button"
               onClick={() => toggleTransitFilter(key)}
-              className={`inline-flex items-center gap-1.5 h-8 md:h-7 px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer ${
+              className={`inline-flex items-center h-8 md:h-7 px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer ${
                 enabled
                   ? 'bg-white dark:bg-[#252525] border-[#bdbdbd] dark:border-[#4a4a4a] text-[#111111] dark:text-[#f5f5f5]'
                   : 'bg-[#f6f6f6] dark:bg-[#1a1a1a] border-[#e5e5e5] dark:border-[#2c2c2c] text-[#999999] dark:text-[#666666] line-through'
               }`}
             >
-              <span
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{
-                  backgroundColor: enabled ? dotColor : '#a3a3a3',
-                  opacity: enabled ? 1 : 0.45,
-                }}
-              />
               {t.transitFilters[key]}
             </button>
           );
@@ -132,13 +119,6 @@ export function TransitOptionsBar() {
         data-testid="transit-walk-filters-row"
         className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible pb-0.5"
       >
-        <span
-          title={t.walkSegment}
-          aria-hidden="true"
-          className="inline-flex items-center justify-center text-[#767676] dark:text-[#888888] shrink-0 mr-0.5"
-        >
-          <Footprints className="w-3.5 h-3.5" />
-        </span>
         <WalkFilterChips />
       </div>
     </div>
