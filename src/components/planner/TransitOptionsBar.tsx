@@ -90,7 +90,15 @@ export function TransitOptionsBar() {
 
   return (
     <div className="pt-0.5 space-y-1.5">
-      {/* Row 1: Transit vehicle types */}
+      {/* Row 1: Walking-segment filters on top */}
+      <div
+        data-testid="transit-walk-filters-row"
+        className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible pb-0.5"
+      >
+        <WalkFilterChips />
+      </div>
+
+      {/* Row 2: Transit vehicle types below */}
       <div
         data-testid="transit-type-filters-row"
         className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible pb-0.5"
@@ -112,14 +120,6 @@ export function TransitOptionsBar() {
             </button>
           );
         })}
-      </div>
-
-      {/* Row 2: Walking-segment filters below transit types */}
-      <div
-        data-testid="transit-walk-filters-row"
-        className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible pb-0.5"
-      >
-        <WalkFilterChips />
       </div>
     </div>
   );
