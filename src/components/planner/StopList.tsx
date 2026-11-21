@@ -35,6 +35,7 @@ import { encodeRouteToQuery } from '@/lib/urlState';
 import type { Waypoint } from '@/lib/types';
 import { PlaceSearchInput } from './PlaceSearchInput';
 import { DwellTimeModal } from './DwellTimeModal';
+import { TransitTimeTrigger } from './TransitOptionsBar';
 
 function formatCompactDwell(minutes: number, hoursShort: string): string {
   if (minutes <= 0) return '0m';
@@ -286,6 +287,7 @@ export function StopList({ variant = 'desktop' }: StopListProps) {
         <div className="flex items-center gap-1.5 flex-wrap">
           <button
             type="button"
+            data-testid="add-stop-btn"
             onClick={() => addIntermediateStop(null)}
             disabled={waypoints.length >= 10}
             className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-xs font-medium text-[#111111] dark:text-white bg-white hover:bg-[#f0f0f0] dark:bg-[#252525] dark:hover:bg-[#303030] border border-[#d4d4d4] dark:border-[#3d3d3d] transition-colors cursor-pointer disabled:opacity-40"
@@ -293,6 +295,8 @@ export function StopList({ variant = 'desktop' }: StopListProps) {
             <Plus className="w-3.5 h-3.5" />
             <span>{t.addStop}</span>
           </button>
+
+          {isTransit && <TransitTimeTrigger />}
 
           {isMultiStop && (
             <button

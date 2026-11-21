@@ -47,13 +47,10 @@ function formatScheduleLabel(
   return `${prefix} · ${d}.${m}. ${timePart}`;
 }
 
-export function TransitOptionsBar() {
+export function TransitTimeTrigger() {
   const lang = useNavStore((s) => s.lang);
   const departMode = useNavStore((s) => s.departMode);
   const departAtLocal = useNavStore((s) => s.departAtLocal);
-  const transitFilters = useNavStore((s) => s.transitFilters);
-  const toggleTransitFilter = useNavStore((s) => s.toggleTransitFilter);
-
   const nowMs = useNowTick();
   const [menuOpen, setMenuOpen] = useState(false);
   const t = getTranslations(lang);
@@ -62,39 +59,48 @@ export function TransitOptionsBar() {
   const isScheduled = departMode !== 'now';
 
   return (
+    <>
+      <button
+        type="button"
+        onClick={() => setMenuOpen(true)}
+        data-testid="transit-time-trigger"
+        className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer tabular-nums ${
+          isScheduled
+            ? 'bg-[#212121] border-[#212121] text-white dark:bg-white dark:border-white dark:text-[#111111]'
+            : 'bg-white dark:bg-[#252525] border-[#d4d4d4] dark:border-[#3d3d3d] text-[#111111] dark:text-[#f5f5f5] hover:bg-[#f0f0f0] dark:hover:bg-[#303030]'
+        }`}
+      >
+        {departMode === 'arriveBy' ? (
+          <Flag className="w-3.5 h-3.5 text-[#eb0000] shrink-0" />
+        ) : (
+          <Clock
+            className={`w-3.5 h-3.5 shrink-0 ${
+              isScheduled ? 'text-[#eb0000]' : 'text-[#686868] dark:text-[#999999]'
+            }`}
+          />
+        )}
+        <span>{scheduleLabel}</span>
+        <ChevronDown className="w-3.5 h-3.5 opacity-60 shrink-0" />
+      </button>
+
+      {menuOpen && <TransitTimeMenu open={menuOpen} onClose={() => setMenuOpen(false)} />}
+    </>
+  );
+}
+
+export function TransitOptionsBar() {
+  const lang = useNavStore((s) => s.lang);
+  const transitFilters = useNavStore((s) => s.transitFilters);
+  const toggleTransitFilter = useNavStore((s) => s.toggleTransitFilter);
+  const t = getTranslations(lang);
+
+  return (
     <div className="pt-0.5 space-y-1.5">
-      {/* Row 1: Trip Time + Transit vehicle types */}
+      {/* Row 1: Transit vehicle types */}
       <div
         data-testid="transit-type-filters-row"
         className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible pb-0.5"
       >
-        {/* SBB Clean Time Trigger */}
-        <button
-          type="button"
-          onClick={() => setMenuOpen(true)}
-          data-testid="transit-time-trigger"
-          className={`inline-flex items-center gap-1.5 h-8 md:h-7 px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer tabular-nums ${
-            isScheduled
-              ? 'bg-[#212121] border-[#212121] text-white dark:bg-white dark:border-white dark:text-[#111111]'
-              : 'bg-white dark:bg-[#212121] border-[#d4d4d4] dark:border-[#3d3d3d] text-[#111111] dark:text-[#f5f5f5] hover:border-[#111111] dark:hover:border-[#888888]'
-          }`}
-        >
-          {departMode === 'arriveBy' ? (
-            <Flag className="w-3.5 h-3.5 text-[#eb0000] shrink-0" />
-          ) : (
-            <Clock
-              className={`w-3.5 h-3.5 shrink-0 ${
-                isScheduled ? 'text-[#eb0000]' : 'text-[#686868] dark:text-[#999999]'
-              }`}
-            />
-          )}
-          <span>{scheduleLabel}</span>
-          <ChevronDown className="w-3.5 h-3.5 opacity-60 shrink-0" />
-        </button>
-
-        <span className="w-px h-4 bg-[#dcdcdc] dark:bg-[#383838] shrink-0 mx-0.5" />
-
-        {/* Monochrome SBB Filter Chips with subtle authentic transit color dot */}
         {FILTER_PILLS.map(({ key, dotColor }) => {
           const enabled = transitFilters.includes(key);
           return (
@@ -110,7 +116,10 @@ export function TransitOptionsBar() {
             >
               <span
                 className="w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: enabled ? dotColor : '#a3a3a3', opacity: enabled ? 1 : 0.45 }}
+                style={{
+                  backgroundColor: enabled ? dotColor : '#a3a3a3',
+                  opacity: enabled ? 1 : 0.45,
+                }}
               />
               {t.transitFilters[key]}
             </button>
@@ -132,8 +141,6 @@ export function TransitOptionsBar() {
         </span>
         <WalkFilterChips />
       </div>
-
-      {menuOpen && <TransitTimeMenu open={menuOpen} onClose={() => setMenuOpen(false)} />}
     </div>
   );
 }
