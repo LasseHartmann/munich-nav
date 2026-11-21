@@ -282,15 +282,15 @@ export function StopList({ variant = 'desktop' }: StopListProps) {
         )}
       </div>
 
-      {/* Minimal Utility Row */}
-      <div className="flex items-center justify-between gap-1.5">
-        <div className="flex items-center gap-1.5 flex-wrap">
+      {/* Borderless Trip Utility Row */}
+      <div className="flex items-center justify-between gap-1.5 px-0.5">
+        <div className="flex items-center gap-1 flex-wrap">
           <button
             type="button"
             data-testid="add-stop-btn"
             onClick={() => addIntermediateStop(null)}
             disabled={waypoints.length >= 10}
-            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-xs font-medium text-[#111111] dark:text-white bg-white hover:bg-[#f0f0f0] dark:bg-[#252525] dark:hover:bg-[#303030] border border-[#d4d4d4] dark:border-[#3d3d3d] transition-colors cursor-pointer disabled:opacity-40"
+            className="inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium text-[#111111] dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer disabled:opacity-40"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{t.addStop}</span>
@@ -315,7 +315,7 @@ export function StopList({ variant = 'desktop' }: StopListProps) {
               type="button"
               onClick={() => void optimizeStopOrder()}
               disabled={isOptimizing}
-              className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md text-xs font-medium text-white bg-[#212121] hover:bg-[#000000] dark:bg-white dark:text-[#111111] dark:hover:bg-[#e5e5e5] transition-colors cursor-pointer disabled:opacity-60"
+              className="inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-semibold text-[#111111] dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer disabled:opacity-60"
             >
               {isOptimizing ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />

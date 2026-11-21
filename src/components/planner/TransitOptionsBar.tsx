@@ -58,10 +58,10 @@ export function TransitTimeTrigger() {
         type="button"
         onClick={() => setMenuOpen(true)}
         data-testid="transit-time-trigger"
-        className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer tabular-nums ${
+        className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs transition-colors shrink-0 cursor-pointer tabular-nums ${
           isScheduled
-            ? 'bg-[#212121] border-[#212121] text-white dark:bg-white dark:border-white dark:text-[#111111]'
-            : 'bg-white dark:bg-[#252525] border-[#d4d4d4] dark:border-[#3d3d3d] text-[#111111] dark:text-[#f5f5f5] hover:bg-[#f0f0f0] dark:hover:bg-[#303030]'
+            ? 'font-semibold text-[#111111] dark:text-white bg-black/5 dark:bg-white/10'
+            : 'font-medium text-[#111111] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
         }`}
       >
         {departMode === 'arriveBy' ? (
@@ -89,19 +89,22 @@ export function TransitOptionsBar() {
   const t = getTranslations(lang);
 
   return (
-    <div className="pt-0.5 space-y-1.5">
-      {/* Row 1: Walking-segment filters on top */}
+    <div
+      data-testid="route-filter-card"
+      className="rounded-xl bg-white dark:bg-[#212121] border border-[#dcdcdc] dark:border-[#333333] divide-y divide-[#ececec] dark:divide-[#2e2e2e] overflow-hidden"
+    >
+      {/* Row 1: Walking-segment filters (white by default, solid black when applied) */}
       <div
         data-testid="transit-walk-filters-row"
-        className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible pb-0.5"
+        className="p-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible"
       >
         <WalkFilterChips />
       </div>
 
-      {/* Row 2: Transit vehicle types below */}
+      {/* Row 2: Transit vehicle modes (all white/selected by default, solid black when excluded) */}
       <div
         data-testid="transit-type-filters-row"
-        className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible pb-0.5"
+        className="p-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible"
       >
         {FILTER_KEYS.map((key) => {
           const enabled = transitFilters.includes(key);
@@ -109,11 +112,12 @@ export function TransitOptionsBar() {
             <button
               key={key}
               type="button"
+              aria-pressed={enabled}
               onClick={() => toggleTransitFilter(key)}
               className={`inline-flex items-center h-8 md:h-7 px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer ${
                 enabled
-                  ? 'bg-white dark:bg-[#252525] border-[#bdbdbd] dark:border-[#4a4a4a] text-[#111111] dark:text-[#f5f5f5]'
-                  : 'bg-[#f6f6f6] dark:bg-[#1a1a1a] border-[#e5e5e5] dark:border-[#2c2c2c] text-[#999999] dark:text-[#666666] line-through'
+                  ? 'bg-white dark:bg-[#2a2a2a] border-[#d4d4d4] dark:border-[#424242] text-[#111111] dark:text-[#f2f2f2] hover:border-[#111111] dark:hover:border-[#888888]'
+                  : 'bg-[#212121] border-[#212121] text-white dark:bg-white dark:border-white dark:text-[#111111] line-through'
               }`}
             >
               {t.transitFilters[key]}
