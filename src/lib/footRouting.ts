@@ -96,9 +96,6 @@ export function buildValhallaBicycleOptions(
     bike.avoid_bad_surfaces = strong ? 0.05 : 0.2;
     bike.bicycle_type = strong ? 'Mountain' : 'Hybrid';
   }
-  if (walkOptions.avoidSteps && Object.keys(bike).length === 0) {
-    bike.use_hills = 0.35;
-  }
   return bike;
 }
 

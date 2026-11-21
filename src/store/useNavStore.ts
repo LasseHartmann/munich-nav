@@ -863,7 +863,11 @@ export const useNavStore = create<NavStore>((set, get) => ({
             waypoints: filled.map((w) => ({ lat: w.place!.lat, lon: w.place!.lon })),
             lang: state.lang,
             walkOptions:
-              state.mode === 'foot' || state.mode === 'bike' ? state.walkOptions : undefined,
+              state.mode === 'foot'
+                ? state.walkOptions
+                : state.mode === 'bike'
+                  ? { ...state.walkOptions, avoidSteps: false }
+                  : undefined,
           }),
         });
 

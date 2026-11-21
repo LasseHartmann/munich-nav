@@ -40,8 +40,7 @@ function RouteQualityBadges({
   const showWalkMetrics = Boolean(metrics);
   const showBikeActiveTags =
     mode === 'bike' && !metrics && (walkOptions.preferGreen || walkOptions.preferQuiet);
-  const showStepFree =
-    walkOptions.avoidSteps && (mode === 'foot' || mode === 'bike' || mode === 'transit');
+  const showStepFree = walkOptions.avoidSteps && (mode === 'foot' || mode === 'transit');
 
   if (!showWalkMetrics && !showBikeActiveTags && !showStepFree) return null;
 
@@ -644,24 +643,20 @@ export function RouteResults({ hideSummaryCard = false }: RouteResultsProps = {}
             </div>
 
             {/* Calm Walk / Bike Quality Metrics Row */}
-            {(mode === 'foot' || mode === 'bike') &&
-              (roadRoute.walkMetrics ||
-                walkOptions.avoidSteps ||
-                (mode === 'bike' && (walkOptions.preferGreen || walkOptions.preferQuiet))) && (
-                <div className="mt-2.5 pt-2.5 border-t border-[#ececec] dark:border-[#2e2e2e]">
-                  <RouteQualityBadges
-                    mode={mode}
-                    metrics={roadRoute.walkMetrics}
-                    walkOptions={walkOptions}
-                    t={t}
-                  />
-                </div>
-              )}
+            {((mode === 'foot' && (roadRoute.walkMetrics || walkOptions.avoidSteps)) ||
+              (mode === 'bike' && (walkOptions.preferGreen || walkOptions.preferQuiet))) && (
+              <div className="mt-2.5 pt-2.5 border-t border-[#ececec] dark:border-[#2e2e2e]">
+                <RouteQualityBadges
+                  mode={mode}
+                  metrics={roadRoute.walkMetrics}
+                  walkOptions={walkOptions}
+                  t={t}
+                />
+              </div>
+            )}
           </div>
-        ) : (mode === 'foot' || mode === 'bike') &&
-          (roadRoute.walkMetrics ||
-            walkOptions.avoidSteps ||
-            (mode === 'bike' && (walkOptions.preferGreen || walkOptions.preferQuiet))) ? (
+        ) : (mode === 'foot' && (roadRoute.walkMetrics || walkOptions.avoidSteps)) ||
+          (mode === 'bike' && (walkOptions.preferGreen || walkOptions.preferQuiet)) ? (
           <div className="px-3 py-2 rounded-lg bg-white dark:bg-[#212121] border border-[#dcdcdc] dark:border-[#333333]">
             <RouteQualityBadges
               mode={mode}

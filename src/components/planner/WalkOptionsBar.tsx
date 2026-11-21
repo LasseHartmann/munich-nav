@@ -8,7 +8,7 @@ import { useNavStore } from '@/store/useNavStore';
  * Shared SBB monochrome filter chips for Green areas, Quiet streets, No stairs,
  * and inline Balanced/Scenic intensity toggle — reused across Walk, Bike, and Transit.
  */
-export function WalkFilterChips() {
+export function WalkFilterChips({ showNoStairs = true }: { showNoStairs?: boolean } = {}) {
   const lang = useNavStore((s) => s.lang);
   const walkOptions = useNavStore((s) => s.walkOptions);
   const toggleWalkOption = useNavStore((s) => s.toggleWalkOption);
@@ -48,19 +48,21 @@ export function WalkFilterChips() {
         <span>{t.walkFilters.preferQuiet}</span>
       </button>
 
-      <button
-        type="button"
-        data-testid="filter-no-stairs"
-        onClick={() => toggleWalkOption('avoidSteps')}
-        className={`inline-flex items-center gap-1.5 h-8 md:h-7 px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer ${
-          walkOptions.avoidSteps
-            ? 'bg-[#212121] border-[#212121] text-white dark:bg-white dark:border-white dark:text-[#111111]'
-            : 'bg-white dark:bg-[#212121] border-[#d4d4d4] dark:border-[#3d3d3d] text-[#212121] dark:text-[#e5e5e5] hover:border-[#111111]'
-        }`}
-      >
-        <Accessibility className="w-3.5 h-3.5 shrink-0" />
-        <span>{t.walkFilters.avoidSteps}</span>
-      </button>
+      {showNoStairs && (
+        <button
+          type="button"
+          data-testid="filter-no-stairs"
+          onClick={() => toggleWalkOption('avoidSteps')}
+          className={`inline-flex items-center gap-1.5 h-8 md:h-7 px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer ${
+            walkOptions.avoidSteps
+              ? 'bg-[#212121] border-[#212121] text-white dark:bg-white dark:border-white dark:text-[#111111]'
+              : 'bg-white dark:bg-[#212121] border-[#d4d4d4] dark:border-[#3d3d3d] text-[#212121] dark:text-[#e5e5e5] hover:border-[#111111]'
+          }`}
+        >
+          <Accessibility className="w-3.5 h-3.5 shrink-0" />
+          <span>{t.walkFilters.avoidSteps}</span>
+        </button>
+      )}
 
       {hasWeighting && (
         <>
@@ -86,9 +88,11 @@ export function WalkFilterChips() {
 }
 
 export function WalkOptionsBar() {
+  const mode = useNavStore((s) => s.mode);
+
   return (
     <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible pb-0.5">
-      <WalkFilterChips />
+      <WalkFilterChips showNoStairs={mode !== 'bike'} />
     </div>
   );
 }

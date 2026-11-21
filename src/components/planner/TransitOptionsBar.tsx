@@ -62,8 +62,12 @@ export function TransitOptionsBar() {
   const isScheduled = departMode !== 'now';
 
   return (
-    <div className="pt-0.5">
-      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible pb-0.5">
+    <div className="pt-0.5 space-y-1.5">
+      {/* Row 1: Trip Time + Transit vehicle types */}
+      <div
+        data-testid="transit-type-filters-row"
+        className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible pb-0.5"
+      >
         {/* SBB Clean Time Trigger */}
         <button
           type="button"
@@ -112,14 +116,17 @@ export function TransitOptionsBar() {
             </button>
           );
         })}
+      </div>
 
-        <span className="w-px h-4 bg-[#dcdcdc] dark:bg-[#383838] shrink-0 mx-0.5" />
-
-        {/* Walking-segment filters for Transit */}
+      {/* Row 2: Walking-segment filters below transit types */}
+      <div
+        data-testid="transit-walk-filters-row"
+        className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible pb-0.5"
+      >
         <span
           title={t.walkSegment}
           aria-hidden="true"
-          className="inline-flex items-center justify-center text-[#767676] dark:text-[#888888] shrink-0"
+          className="inline-flex items-center justify-center text-[#767676] dark:text-[#888888] shrink-0 mr-0.5"
         >
           <Footprints className="w-3.5 h-3.5" />
         </span>

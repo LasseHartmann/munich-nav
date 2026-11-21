@@ -82,8 +82,6 @@ async function routeWithORS(
     if (Object.keys(options).length > 0) {
       payload.options = options;
     }
-  } else if (mode === 'bike' && walkOptions?.avoidSteps) {
-    payload.options = { avoid_features: ['steps'] };
   }
 
   const res = await fetch(`https://api.openrouteservice.org/v2/directions/${profile}/geojson`, {
