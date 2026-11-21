@@ -268,7 +268,10 @@ export function StopList({ variant = 'desktop' }: StopListProps) {
 
         {/* Integrated Swap button for crisp 2-stop From/To layout */}
         {!isMultiStop && (
-          <div className="flex items-center border-l border-[#ececec] dark:border-[#2e2e2e] px-1 shrink-0">
+          <div
+            data-testid="inline-flip-col"
+            className="w-[42px] flex items-center justify-center border-l border-[#ececec] dark:border-[#2e2e2e] shrink-0"
+          >
             <button
               type="button"
               onClick={reverseWaypoints}
@@ -286,7 +289,9 @@ export function StopList({ variant = 'desktop' }: StopListProps) {
       {variant === 'mobile' ? (
         <div
           data-testid="mobile-trip-actions-row"
-          className="w-full min-w-0 flex items-center justify-between gap-1 overflow-hidden"
+          className={`w-full min-w-0 flex items-center justify-between gap-1 overflow-hidden ${
+            !isMultiStop ? 'pr-[44px]' : ''
+          }`}
         >
           <button
             type="button"
