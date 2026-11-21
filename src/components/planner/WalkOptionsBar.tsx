@@ -4,7 +4,11 @@ import { Accessibility, SlidersHorizontal, Trees, VolumeX } from 'lucide-react';
 import { getTranslations } from '@/lib/i18n';
 import { useNavStore } from '@/store/useNavStore';
 
-export function WalkOptionsBar() {
+/**
+ * Shared SBB monochrome filter chips for Green areas, Quiet streets, No stairs,
+ * and inline Balanced/Scenic intensity toggle — reused across Walk, Bike, and Transit.
+ */
+export function WalkFilterChips() {
   const lang = useNavStore((s) => s.lang);
   const walkOptions = useNavStore((s) => s.walkOptions);
   const toggleWalkOption = useNavStore((s) => s.toggleWalkOption);
@@ -15,9 +19,10 @@ export function WalkOptionsBar() {
   const isScenic = walkOptions.intensity === 'strong';
 
   return (
-    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+    <>
       <button
         type="button"
+        data-testid="filter-green"
         onClick={() => toggleWalkOption('preferGreen')}
         className={`inline-flex items-center gap-1.5 h-8 md:h-7 px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer ${
           walkOptions.preferGreen
@@ -31,6 +36,7 @@ export function WalkOptionsBar() {
 
       <button
         type="button"
+        data-testid="filter-quiet"
         onClick={() => toggleWalkOption('preferQuiet')}
         className={`inline-flex items-center gap-1.5 h-8 md:h-7 px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer ${
           walkOptions.preferQuiet
@@ -44,6 +50,7 @@ export function WalkOptionsBar() {
 
       <button
         type="button"
+        data-testid="filter-no-stairs"
         onClick={() => toggleWalkOption('avoidSteps')}
         className={`inline-flex items-center gap-1.5 h-8 md:h-7 px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer ${
           walkOptions.avoidSteps
@@ -60,6 +67,7 @@ export function WalkOptionsBar() {
           <span className="w-px h-4 bg-[#dcdcdc] dark:bg-[#383838] shrink-0 mx-0.5" />
           <button
             type="button"
+            data-testid="filter-intensity"
             onClick={() => setWalkIntensity(isScenic ? 'balanced' : 'strong')}
             className={`inline-flex items-center gap-1.5 h-8 md:h-7 px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer ${
               isScenic
@@ -73,6 +81,14 @@ export function WalkOptionsBar() {
           </button>
         </>
       )}
+    </>
+  );
+}
+
+export function WalkOptionsBar() {
+  return (
+    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible pb-0.5">
+      <WalkFilterChips />
     </div>
   );
 }

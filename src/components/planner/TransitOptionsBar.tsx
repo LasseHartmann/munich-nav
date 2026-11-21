@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, Clock, Flag } from 'lucide-react';
+import { ChevronDown, Clock, Flag, Footprints } from 'lucide-react';
 import { toLocalDateTimeInputValue } from '@/lib/geo';
 import { useNowTick } from '@/lib/useNowTick';
 import { useNavStore } from '@/store/useNavStore';
 import { getTranslations } from '@/lib/i18n';
 import type { TransitFilterKey } from '@/lib/types';
 import { TransitTimeMenu } from './TransitTimeMenu';
+import { WalkFilterChips } from './WalkOptionsBar';
 
 const FILTER_PILLS: { key: TransitFilterKey; dotColor: string }[] = [
   { key: 'SUBWAY', dotColor: '#0065ae' },
@@ -62,7 +63,7 @@ export function TransitOptionsBar() {
 
   return (
     <div className="pt-0.5">
-      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible pb-0.5">
         {/* SBB Clean Time Trigger */}
         <button
           type="button"
@@ -111,6 +112,18 @@ export function TransitOptionsBar() {
             </button>
           );
         })}
+
+        <span className="w-px h-4 bg-[#dcdcdc] dark:bg-[#383838] shrink-0 mx-0.5" />
+
+        {/* Walking-segment filters for Transit */}
+        <span
+          title={t.walkSegment}
+          aria-hidden="true"
+          className="inline-flex items-center justify-center text-[#767676] dark:text-[#888888] shrink-0"
+        >
+          <Footprints className="w-3.5 h-3.5" />
+        </span>
+        <WalkFilterChips />
       </div>
 
       {menuOpen && <TransitTimeMenu open={menuOpen} onClose={() => setMenuOpen(false)} />}

@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { decodePolylineToGeoJSON } from '@/lib/geo';
+import {
+  buildOrsFootOptions,
+  buildValhallaBicycleOptions,
+  buildValhallaPedestrianOptions,
+  parseOrsWalkMetrics,
+  type OrsWalkExtras,
+} from '@/lib/footRouting';
 import type {
   RoadManeuver,
   RoadRouteLeg,
   RoadRouteResult,
-  WalkMetrics,
   WalkOptions,
 } from '@/lib/types';
 
@@ -31,21 +37,12 @@ const VALHALLA_COSTING: Record<RoadMode, string> = {
   foot: 'pedestrian',
 };
 
-interface OrsExtraSummaryItem {
-  value?: number;
-  distance?: number;
-  amount?: number;
-}
-
 interface OrsGeoJson {
   features?: {
     geometry?: { coordinates?: [number, number][] };
     properties?: {
       summary?: { distance?: number; duration?: number };
-      extras?: {
-        green?: { summary?: OrsExtraSummaryItem[] };
-        noise?: { summary?: OrsExtraSummaryItem[] };
-      };
+      extras?: OrsWalkExtras;
       segments?: {
         distance?: number;
         duration?: number;
@@ -62,33 +59,6 @@ interface OrsGeoJson {
   }[];
 }
 
-/**
- * Computes intuitive 0-100% green & quiet scores from ORS extra_info summaries.
- * Empirically verified in Munich: ORS uses an inverted 0..10 cost index where
- * values <= 7 represent green park/tree paths and quiet low-traffic streets,
- * while 8..10 represent unshaded concrete / busy arterial roads.
- */
-function parseOrsWalkMetrics(
-  extras?: NonNullable<NonNullable<OrsGeoJson['features']>[0]['properties']>['extras']
-): WalkMetrics | undefined {
-  const greenSummary = extras?.green?.summary;
-  const noiseSummary = extras?.noise?.summary;
-  if (!greenSummary?.length && !noiseSummary?.length) return undefined;
-
-  const greenAmount = (greenSummary || [])
-    .filter((item) => typeof item.value === 'number' && item.value <= 7)
-    .reduce((acc, item) => acc + (item.amount ?? 0), 0);
-
-  const quietAmount = (noiseSummary || [])
-    .filter((item) => typeof item.value === 'number' && item.value <= 7)
-    .reduce((acc, item) => acc + (item.amount ?? 0), 0);
-
-  return {
-    greenPercent: Math.min(100, Math.max(0, Math.round(greenAmount))),
-    quietPercent: Math.min(100, Math.max(0, Math.round(quietAmount))),
-  };
-}
-
 async function routeWithORS(
   mode: RoadMode,
   waypoints: { lat: number; lon: number }[],
@@ -96,7 +66,8 @@ async function routeWithORS(
   apiKey: string,
   walkOptions?: WalkOptions
 ): Promise<RoadRouteResult> {
-  const profile = ORS_PROFILES[mode];
+  const profile =
+    mode === 'bike' && walkOptions?.preferGreen ? 'cycling-mountain' : ORS_PROFILES[mode];
 
   const payload: Record<string, unknown> = {
     coordinates: waypoints.map((w) => [w.lon, w.lat]),
@@ -107,27 +78,12 @@ async function routeWithORS(
 
   if (mode === 'foot') {
     payload.extra_info = ['green', 'noise'];
-
-    const options: Record<string, unknown> = {};
-    if (walkOptions) {
-      const strong = walkOptions.intensity === 'strong';
-      const weightings: Record<string, number> = {};
-      if (walkOptions.preferGreen) {
-        weightings.green = strong ? 0.95 : 0.65;
-      }
-      if (walkOptions.preferQuiet) {
-        weightings.quiet = strong ? 0.85 : 0.45;
-      }
-      if (Object.keys(weightings).length > 0) {
-        options.profile_params = { weightings };
-      }
-      if (walkOptions.avoidSteps) {
-        options.avoid_features = ['steps'];
-      }
-    }
+    const options = buildOrsFootOptions(walkOptions);
     if (Object.keys(options).length > 0) {
       payload.options = options;
     }
+  } else if (mode === 'bike' && walkOptions?.avoidSteps) {
+    payload.options = { avoid_features: ['steps'] };
   }
 
   const res = await fetch(`https://api.openrouteservice.org/v2/directions/${profile}/geojson`, {
@@ -232,18 +188,14 @@ async function routeWithValhalla(
   };
 
   if (mode === 'foot' && walkOptions) {
-    const ped: Record<string, number> = {};
-    const strong = walkOptions.intensity === 'strong';
-    if (walkOptions.preferGreen || walkOptions.preferQuiet) {
-      ped.walkway_factor = strong ? 0.4 : 0.65;
-      ped.use_roads = strong ? 0.05 : 0.18;
-      ped.sidewalk_factor = strong ? 1.5 : 1.25;
-    }
-    if (walkOptions.avoidSteps) {
-      ped.step_penalty = 180;
-    }
+    const ped = buildValhallaPedestrianOptions(walkOptions);
     if (Object.keys(ped).length > 0) {
       body.costing_options = { pedestrian: ped };
+    }
+  } else if (mode === 'bike' && walkOptions) {
+    const bike = buildValhallaBicycleOptions(walkOptions);
+    if (Object.keys(bike).length > 0) {
+      body.costing_options = { bicycle: bike };
     }
   }
 
@@ -328,6 +280,22 @@ export async function POST(req: NextRequest) {
     }
 
     const orsKey = process.env.ORS_API_KEY?.trim();
+
+    // For Bike with Green/Quiet preferences, Valhalla bicycle costing genuinely shifts routes
+    // onto cycleways, park tracks, and quiet residential streets (whereas ORS cycling ignores green/quiet).
+    const preferValhallaForBike =
+      mode === 'bike' && Boolean(walkOptions?.preferGreen || walkOptions?.preferQuiet);
+
+    if (preferValhallaForBike) {
+      try {
+        const valhallaResult = await routeWithValhalla(mode, waypoints, lang, walkOptions);
+        return NextResponse.json(valhallaResult, {
+          headers: { 'Cache-Control': 'private, max-age=60' },
+        });
+      } catch (valErr) {
+        console.warn('[MucNav /api/route] Valhalla bike failed, falling back to ORS:', valErr);
+      }
+    }
 
     if (orsKey) {
       try {

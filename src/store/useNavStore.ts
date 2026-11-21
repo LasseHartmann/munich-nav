@@ -753,7 +753,11 @@ export const useNavStore = create<NavStore>((set, get) => ({
       },
       highlighted: null,
     }));
-    if (get().mode === 'foot' && get().waypoints.filter((w) => w.place).length >= 2) {
+    const mode = get().mode;
+    if (
+      (mode === 'foot' || mode === 'bike' || mode === 'transit') &&
+      get().waypoints.filter((w) => w.place).length >= 2
+    ) {
       void get().calculateRoute();
     }
   },
@@ -767,7 +771,11 @@ export const useNavStore = create<NavStore>((set, get) => ({
       },
       highlighted: null,
     }));
-    if (get().mode === 'foot' && get().waypoints.filter((w) => w.place).length >= 2) {
+    const mode = get().mode;
+    if (
+      (mode === 'foot' || mode === 'bike' || mode === 'transit') &&
+      get().waypoints.filter((w) => w.place).length >= 2
+    ) {
       void get().calculateRoute();
     }
   },
@@ -825,6 +833,7 @@ export const useNavStore = create<NavStore>((set, get) => ({
             departureTime,
             arriveBy: state.departMode === 'arriveBy',
             transitFilters: state.transitFilters,
+            walkOptions: state.walkOptions,
             selectedAlternatives: overrideAlts ?? state.selectedTransitAlternatives,
           }),
         });
@@ -853,7 +862,8 @@ export const useNavStore = create<NavStore>((set, get) => ({
             mode: state.mode,
             waypoints: filled.map((w) => ({ lat: w.place!.lat, lon: w.place!.lon })),
             lang: state.lang,
-            walkOptions: state.mode === 'foot' ? state.walkOptions : undefined,
+            walkOptions:
+              state.mode === 'foot' || state.mode === 'bike' ? state.walkOptions : undefined,
           }),
         });
 

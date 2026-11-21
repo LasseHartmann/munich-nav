@@ -681,7 +681,7 @@ export function MobileBottomSheet() {
           <div className="px-3.5 pt-3 space-y-2.5">
             <StopList variant="mobile" />
             {mode === 'transit' && <TransitOptionsBar />}
-            {mode === 'foot' && <WalkOptionsBar />}
+            {(mode === 'foot' || mode === 'bike') && <WalkOptionsBar />}
             <RouteResults hideSummaryCard />
           </div>
         </div>

@@ -78,7 +78,7 @@ export function PlannerPanel() {
               <div className="px-4 py-3 space-y-2.5">
                 <StopList />
                 {mode === 'transit' && <TransitOptionsBar />}
-                {mode === 'foot' && <WalkOptionsBar />}
+                {(mode === 'foot' || mode === 'bike') && <WalkOptionsBar />}
               </div>
             </div>
 

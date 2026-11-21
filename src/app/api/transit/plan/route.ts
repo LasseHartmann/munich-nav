@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { decodePolylineToGeoJSON, diffMinutes } from '@/lib/geo';
+import { decodePolylineToGeoJSON, diffMinutes, haversineMeters } from '@/lib/geo';
+import { routeFootSegment } from '@/lib/footRouting';
 import type {
   TransitFilterKey,
   TransitItinerary,
   TransitMultiStopLeg,
   TransitPlanResult,
   TransitSegment,
+  WalkMetrics,
+  WalkOptions,
 } from '@/lib/types';
 
 const USER_AGENT = 'MucNav/0.1 (Munich Multi-Stop Navigation Web App)';
@@ -23,6 +26,7 @@ interface TransitPlanRequestBody {
   departureTime?: string; // ISO string — acts as arrival deadline when arriveBy is true
   arriveBy?: boolean;
   transitFilters?: TransitFilterKey[];
+  walkOptions?: WalkOptions;
   /** Optional map of legIndex -> selected alternative index */
   selectedAlternatives?: Record<number, number>;
 }
@@ -198,7 +202,8 @@ async function fetchSingleTransitLeg(
   targetIso: string,
   arriveBy: boolean,
   transitModesParam: string,
-  legIndex: number
+  legIndex: number,
+  avoidSteps = false
 ): Promise<TransitItinerary[]> {
   const params = new URLSearchParams({
     fromPlace: `${from.lat.toFixed(6)},${from.lon.toFixed(6)}`,
@@ -207,7 +212,7 @@ async function fetchSingleTransitLeg(
     arriveBy: arriveBy ? 'true' : 'false',
     numItineraries: '4',
     transitModes: transitModesParam,
-    pedestrianProfile: 'FOOT',
+    pedestrianProfile: avoidSteps ? 'WHEELCHAIR' : 'FOOT',
     maxMatchingDistance: '250',
   });
 
@@ -285,8 +290,13 @@ export async function POST(req: NextRequest) {
       departureTime,
       arriveBy = false,
       transitFilters,
+      walkOptions,
       selectedAlternatives = {},
     } = body;
+    const avoidSteps = Boolean(walkOptions?.avoidSteps);
+    const hasWalkPreferences = Boolean(
+      walkOptions && (walkOptions.preferGreen || walkOptions.preferQuiet || walkOptions.avoidSteps)
+    );
 
     if (!Array.isArray(stops) || stops.length < 2) {
       return NextResponse.json({ error: 'At least 2 stops are required' }, { status: 400 });
@@ -329,7 +339,8 @@ export async function POST(req: NextRequest) {
             currentDepartureIso,
             false,
             transitModesParam,
-            i
+            i,
+            avoidSteps
           );
 
           const requestedAlt = selectedAlternatives[i] ?? 0;
@@ -401,7 +412,8 @@ export async function POST(req: NextRequest) {
             currentTargetArrivalIso,
             true,
             transitModesParam,
-            i
+            i,
+            avoidSteps
           );
 
           const requestedAlt = selectedAlternatives[i] ?? 0;
@@ -456,6 +468,162 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Enhance street WALK segments on each leg's chosen itinerary when walking filters are active
+    let aggregateWalkMetrics: WalkMetrics | undefined;
+    if (hasWalkPreferences && walkOptions) {
+      interface WalkUpgradeTask {
+        legIdx: number;
+        segIdx: number;
+        seg: TransitSegment;
+      }
+      const tasks: WalkUpgradeTask[] = [];
+
+      for (let lIdx = 0; lIdx < legs.length; lIdx++) {
+        const leg = legs[lIdx];
+        const chosen = leg?.alternatives[leg.selectedIndex];
+        if (!chosen) continue;
+
+        for (let sIdx = 0; sIdx < chosen.segments.length; sIdx++) {
+          const seg = chosen.segments[sIdx];
+          if (seg.mode !== 'WALK') continue;
+          if (!seg.fromLat || !seg.fromLon || !seg.toLat || !seg.toLon) continue;
+          const crowMeters = haversineMeters(seg.fromLat, seg.fromLon, seg.toLat, seg.toLon);
+          const estDist = seg.distanceMeters ?? crowMeters;
+          // Skip tiny indoor/platform corridors (< 80m) so indoor station transfers stay intact
+          if (estDist < 80 && crowMeters < 70) continue;
+          tasks.push({ legIdx: lIdx, segIdx: sIdx, seg });
+        }
+      }
+
+      if (tasks.length > 0) {
+        const upgraded = await Promise.all(
+          tasks.map((task) =>
+            routeFootSegment(
+              { lat: task.seg.fromLat, lon: task.seg.fromLon },
+              { lat: task.seg.toLat, lon: task.seg.toLon },
+              walkOptions
+            )
+          )
+        );
+
+        let weightedGreen = 0;
+        let weightedQuiet = 0;
+        let metricWeightTotal = 0;
+        const touchedLegs = new Set<number>();
+
+        tasks.forEach((task, idx) => {
+          const routed = upgraded[idx];
+          if (!routed) return;
+
+          const leg = legs[task.legIdx];
+          const chosen = leg?.alternatives[leg.selectedIndex];
+          if (!chosen) return;
+
+          const segs = chosen.segments;
+          const isOnlySeg = segs.length === 1;
+          const isFirstSeg = task.segIdx === 0;
+          const isLastSeg = task.segIdx === segs.length - 1;
+          const seg = segs[task.segIdx];
+
+          // For middle transfer walks between two transit vehicles, keep only if transfer window remains safe
+          if (!isFirstSeg && !isLastSeg) {
+            const prevEndMs = new Date(segs[task.segIdx - 1].endTime).getTime();
+            const nextStartMs = new Date(segs[task.segIdx + 1].startTime).getTime();
+            const windowSec = Math.round((nextStartMs - prevEndMs) / 1000);
+            const maxSafeSec = Math.max(seg.durationSeconds + 45, windowSec - 30);
+            if (Number.isFinite(maxSafeSec) && routed.durationSeconds > maxSafeSec) {
+              return;
+            }
+          }
+
+          let nextStartIso = seg.startTime;
+          let nextEndIso = seg.endTime;
+
+          if (isOnlySeg) {
+            if (arriveBy) {
+              const endMs = new Date(seg.endTime).getTime();
+              if (!Number.isNaN(endMs)) {
+                nextStartIso = new Date(endMs - routed.durationSeconds * 1000).toISOString();
+              }
+            } else {
+              const startMs = new Date(seg.startTime).getTime();
+              if (!Number.isNaN(startMs)) {
+                nextEndIso = new Date(startMs + routed.durationSeconds * 1000).toISOString();
+              }
+            }
+          } else if (isFirstSeg) {
+            // Keep train boarding time anchored; shift walk start earlier/later accordingly
+            const endMs = new Date(seg.endTime).getTime();
+            if (!Number.isNaN(endMs)) {
+              nextStartIso = new Date(endMs - routed.durationSeconds * 1000).toISOString();
+            }
+          } else if (isLastSeg) {
+            // Keep train alighting time anchored; shift arrival time accordingly
+            const startMs = new Date(seg.startTime).getTime();
+            if (!Number.isNaN(startMs)) {
+              nextEndIso = new Date(startMs + routed.durationSeconds * 1000).toISOString();
+            }
+          }
+
+          segs[task.segIdx] = {
+            ...seg,
+            startTime: nextStartIso,
+            scheduledStartTime: nextStartIso,
+            endTime: nextEndIso,
+            scheduledEndTime: nextEndIso,
+            durationSeconds: routed.durationSeconds,
+            distanceMeters: routed.distanceMeters,
+            coordinates: routed.coordinates,
+            walkMetrics: routed.walkMetrics,
+          };
+
+          if (routed.walkMetrics && routed.distanceMeters > 0) {
+            weightedGreen += routed.walkMetrics.greenPercent * routed.distanceMeters;
+            weightedQuiet += routed.walkMetrics.quietPercent * routed.distanceMeters;
+            metricWeightTotal += routed.distanceMeters;
+          }
+          touchedLegs.add(task.legIdx);
+        });
+
+        for (const lIdx of touchedLegs) {
+          const leg = legs[lIdx];
+          const chosen = leg?.alternatives[leg.selectedIndex];
+          if (!chosen || chosen.segments.length === 0) continue;
+          const firstSeg = chosen.segments[0];
+          const lastSeg = chosen.segments[chosen.segments.length - 1];
+          const startMs = new Date(firstSeg.startTime).getTime();
+          const endMs = new Date(lastSeg.endTime).getTime();
+          const updatedDuration =
+            !Number.isNaN(startMs) && !Number.isNaN(endMs) && endMs > startMs
+              ? Math.round((endMs - startMs) / 1000)
+              : chosen.segments.reduce((acc, s) => acc + s.durationSeconds, 0);
+          const updatedWalkMeters = chosen.segments
+            .filter((s) => s.mode === 'WALK')
+            .reduce((acc, s) => acc + (s.distanceMeters ?? 0), 0);
+
+          leg.alternatives[leg.selectedIndex] = {
+            ...chosen,
+            startTime: firstSeg.startTime,
+            endTime: lastSeg.endTime,
+            durationSeconds: updatedDuration,
+            walkDistanceMeters: Math.round(updatedWalkMeters),
+          };
+        }
+
+        if (metricWeightTotal > 0) {
+          aggregateWalkMetrics = {
+            greenPercent: Math.min(100, Math.max(0, Math.round(weightedGreen / metricWeightTotal))),
+            quietPercent: Math.min(100, Math.max(0, Math.round(weightedQuiet / metricWeightTotal))),
+          };
+        }
+
+        totalTravelSeconds = legs.reduce((acc, leg) => {
+          const chosen = leg?.alternatives[leg.selectedIndex];
+          return acc + (chosen?.durationSeconds ?? 0);
+        }, 0);
+      }
+    }
+
     const firstChosen = legs[0]?.alternatives[legs[0].selectedIndex];
     const lastLeg = legs[legs.length - 1];
     const lastChosen = lastLeg?.alternatives[lastLeg.selectedIndex];
@@ -475,6 +643,7 @@ export async function POST(req: NextRequest) {
       totalDurationSeconds,
       totalTravelSeconds,
       totalDwellSeconds,
+      walkMetrics: aggregateWalkMetrics,
       legs,
     };
 

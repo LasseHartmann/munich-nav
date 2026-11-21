@@ -110,6 +110,7 @@ export interface TransitSegment {
   cancelled: boolean;
   intermediateStops: TransitIntermediateStop[];
   coordinates: [number, number][]; // [lon, lat][]
+  walkMetrics?: WalkMetrics;
 }
 
 export interface TransitItinerary {
@@ -143,6 +144,7 @@ export interface TransitPlanResult {
   totalDurationSeconds: number;
   totalTravelSeconds: number;
   totalDwellSeconds: number;
+  walkMetrics?: WalkMetrics;
   legs: TransitMultiStopLeg[];
 }
 
