@@ -58,7 +58,7 @@ export function TransitTimeTrigger() {
         type="button"
         onClick={() => setMenuOpen(true)}
         data-testid="transit-time-trigger"
-        className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs transition-colors shrink-0 cursor-pointer tabular-nums ${
+        className={`inline-flex items-center gap-1 h-7 px-1.5 md:px-2 rounded-md text-xs transition-colors min-w-0 max-w-full cursor-pointer tabular-nums ${
           isScheduled
             ? 'font-semibold text-[#111111] dark:text-white bg-black/5 dark:bg-white/10'
             : 'font-medium text-[#111111] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
@@ -73,7 +73,7 @@ export function TransitTimeTrigger() {
             }`}
           />
         )}
-        <span>{scheduleLabel}</span>
+        <span className="truncate">{scheduleLabel}</span>
         <ChevronDown className="w-3.5 h-3.5 opacity-60 shrink-0" />
       </button>
 
@@ -96,7 +96,7 @@ export function TransitOptionsBar() {
       {/* Row 1: Walking-segment filters (white by default, solid black when applied) */}
       <div
         data-testid="transit-walk-filters-row"
-        className="p-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible"
+        className="p-2 flex items-center justify-between md:justify-start gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible"
       >
         <WalkFilterChips />
       </div>
@@ -104,7 +104,7 @@ export function TransitOptionsBar() {
       {/* Row 2: Transit vehicle modes (all white/selected by default, solid black when excluded) */}
       <div
         data-testid="transit-type-filters-row"
-        className="p-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible"
+        className="p-2 flex items-center justify-between md:justify-start gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible"
       >
         {FILTER_KEYS.map((key) => {
           const enabled = transitFilters.includes(key);
@@ -114,7 +114,7 @@ export function TransitOptionsBar() {
               type="button"
               aria-pressed={enabled}
               onClick={() => toggleTransitFilter(key)}
-              className={`inline-flex items-center h-8 md:h-7 px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer ${
+              className={`inline-flex items-center justify-center h-8 md:h-7 px-2 md:px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer ${
                 enabled
                   ? 'bg-white dark:bg-[#2a2a2a] border-[#d4d4d4] dark:border-[#424242] text-[#111111] dark:text-[#f2f2f2] hover:border-[#111111] dark:hover:border-[#888888]'
                   : 'bg-[#212121] border-[#212121] text-white dark:bg-white dark:border-white dark:text-[#111111] line-through'

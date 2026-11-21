@@ -86,7 +86,7 @@ export function WalkOptionsBar() {
       data-testid="route-filter-card"
       className="rounded-xl bg-white dark:bg-[#212121] border border-[#dcdcdc] dark:border-[#333333] p-2 overflow-hidden"
     >
-      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible">
+      <div className="flex items-center justify-between md:justify-start gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap md:overflow-visible">
         <WalkFilterChips showNoStairs={mode !== 'bike'} />
       </div>
     </div>
