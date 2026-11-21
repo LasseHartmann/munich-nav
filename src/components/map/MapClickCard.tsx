@@ -34,19 +34,19 @@ export function MapClickCard({ variant = 'floating' }: MapClickCardProps) {
 
   const innerContent = (
     <>
-      <div className="px-4 py-3 flex items-start justify-between gap-2.5">
+      <div className="px-4 py-3 bg-white dark:bg-[#1e1e1e] flex items-start justify-between gap-2.5">
         <div className="flex items-start gap-2.5 min-w-0">
           {variant === 'sheet' ? (
             <button
               type="button"
               onClick={closeMapClickPin}
-              className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center active:scale-95 shrink-0 cursor-pointer"
+              className="w-8 h-8 rounded-md text-[#111111] dark:text-white hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center shrink-0 cursor-pointer"
               aria-label={t.backToTrip}
             >
               <ArrowLeft className="w-4.5 h-4.5" />
             </button>
           ) : (
-            <div className="w-8 h-8 rounded-xl bg-[#0065ae]/12 dark:bg-[#0065ae]/25 text-[#0065ae] dark:text-sky-400 flex items-center justify-center shrink-0 mt-0.5">
+            <div className="mt-0.5 text-[#eb0000] shrink-0">
               {mapClickPin.loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
@@ -55,29 +55,29 @@ export function MapClickCard({ variant = 'floating' }: MapClickCardProps) {
             </div>
           )}
           <div className="min-w-0">
-            <div className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+            <div className="text-sm font-semibold text-[#111111] dark:text-white truncate">
               {mapClickPin.loading ? t.mapDropTitle : place.name}
             </div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5">
+            <div className="text-xs text-[#686868] dark:text-[#999999] truncate mt-0.5">
               {place.subtitle || `${mapClickPin.lat.toFixed(4)}, ${mapClickPin.lon.toFixed(4)}`}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-0.5 shrink-0">
           <button
             type="button"
             onClick={() => toggleFavorite(place)}
-            className="w-9 h-9 rounded-xl inline-flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-90 cursor-pointer"
+            className="w-8 h-8 rounded-md inline-flex items-center justify-center text-[#686868] hover:text-[#111111] dark:hover:text-white cursor-pointer"
             title={isFav ? t.removeFavorite : t.saveFavorite}
           >
-            <Star className={`w-4 h-4 ${isFav ? 'text-amber-500 fill-amber-400' : ''}`} />
+            <Star className={`w-4 h-4 ${isFav ? 'text-[#111111] dark:text-white fill-current' : ''}`} />
           </button>
           {variant === 'floating' && (
             <button
               type="button"
               onClick={closeMapClickPin}
-              className="w-9 h-9 rounded-xl inline-flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              className="w-8 h-8 rounded-md inline-flex items-center justify-center text-[#686868] hover:text-[#111111] dark:hover:text-white cursor-pointer"
               aria-label="Close pin card"
             >
               <X className="w-4 h-4" />
@@ -87,14 +87,14 @@ export function MapClickCard({ variant = 'floating' }: MapClickCardProps) {
       </div>
 
       <div
-        className={`p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900 grid grid-cols-3 gap-2 ${
+        className={`p-3 border-t border-[#e5e5e5] dark:border-[#333333] bg-[#f6f6f6] dark:bg-[#1a1a1a] grid grid-cols-3 gap-2 ${
           variant === 'sheet' ? 'pb-safe-lg mt-auto' : ''
         }`}
       >
         <button
           type="button"
           onClick={() => applyPlaceAs('start', place)}
-          className="h-11 md:h-9 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95 transition-all cursor-pointer shadow-xs"
+          className="h-10 md:h-9 inline-flex items-center justify-center gap-1 px-2 rounded-lg text-xs font-medium bg-white hover:bg-[#f0f0f0] dark:bg-[#262626] dark:hover:bg-[#333333] border border-[#d4d4d4] dark:border-[#3d3d3d] text-[#111111] dark:text-white cursor-pointer"
         >
           <MapPin className="w-3.5 h-3.5" />
           {t.startHere}
@@ -102,7 +102,7 @@ export function MapClickCard({ variant = 'floating' }: MapClickCardProps) {
         <button
           type="button"
           onClick={() => applyPlaceAs('stop', place)}
-          className="h-11 md:h-9 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-xs font-extrabold bg-amber-500 hover:bg-amber-600 text-white active:scale-95 transition-all cursor-pointer shadow-xs"
+          className="h-10 md:h-9 inline-flex items-center justify-center gap-1 px-2 rounded-lg text-xs font-medium bg-white hover:bg-[#f0f0f0] dark:bg-[#262626] dark:hover:bg-[#333333] border border-[#d4d4d4] dark:border-[#3d3d3d] text-[#111111] dark:text-white cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
           {t.addAsStop}
@@ -110,7 +110,7 @@ export function MapClickCard({ variant = 'floating' }: MapClickCardProps) {
         <button
           type="button"
           onClick={() => applyPlaceAs('end', place)}
-          className="h-11 md:h-9 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-xs font-extrabold bg-rose-600 hover:bg-rose-700 text-white active:scale-95 transition-all cursor-pointer shadow-xs"
+          className="h-10 md:h-9 inline-flex items-center justify-center gap-1 px-2 rounded-lg text-xs font-semibold bg-[#eb0000] hover:bg-[#c60018] text-white cursor-pointer"
         >
           <Flag className="w-3.5 h-3.5" />
           {t.goHere}
@@ -120,11 +120,11 @@ export function MapClickCard({ variant = 'floating' }: MapClickCardProps) {
   );
 
   if (variant === 'sheet') {
-    return <div className="flex-1 flex flex-col justify-between">{innerContent}</div>;
+    return <div className="flex-1 flex flex-col justify-between bg-white dark:bg-[#1e1e1e]">{innerContent}</div>;
   }
 
   return (
-    <div className="hidden md:block fixed z-30 right-3 bottom-4 w-[330px] max-w-[calc(100vw-24px)] rounded-[22px] bg-white/96 dark:bg-[#0f172a]/96 backdrop-blur-xl border border-slate-200/90 dark:border-slate-700/80 shadow-2xl overflow-hidden">
+    <div className="hidden md:block fixed z-30 right-3 bottom-4 w-[328px] max-w-[calc(100vw-24px)] rounded-xl bg-white dark:bg-[#212121] border border-[#d4d4d4] dark:border-[#383838] shadow-xl overflow-hidden">
       {innerContent}
     </div>
   );

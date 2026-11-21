@@ -9,7 +9,6 @@ import {
   Plus,
   RefreshCw,
   Star,
-  TrainFront,
   X,
 } from 'lucide-react';
 import { formatMunichTime } from '@/lib/geo';
@@ -115,41 +114,35 @@ export function StationPopup({ variant = 'floating' }: StationPopupProps) {
 
   const innerContent = (
     <>
-      {/* Header */}
-      <div className="px-4 py-2.5 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2 shrink-0">
+      {/* Clean SBB Departure Board Header */}
+      <div className="px-4 py-2.5 bg-white dark:bg-[#1e1e1e] border-b border-[#e5e5e5] dark:border-[#333333] flex items-center justify-between gap-2 shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
-          {variant === 'sheet' ? (
+          {variant === 'sheet' && (
             <button
               type="button"
               onClick={() => setSelectedStation(null)}
-              className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center active:scale-95 shrink-0 cursor-pointer"
+              className="w-8 h-8 rounded-md text-[#111111] dark:text-white hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center shrink-0 cursor-pointer"
               aria-label={t.backToTrip}
             >
               <ArrowLeft className="w-4.5 h-4.5" />
             </button>
-          ) : (
-            <div className="w-8 h-8 rounded-xl bg-[#0065ae] text-white flex items-center justify-center shrink-0 shadow-xs">
-              <TrainFront className="w-4 h-4" />
-            </div>
           )}
           <div className="min-w-0">
-            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+            <h3 className="text-sm font-semibold text-[#111111] dark:text-white truncate">
               {station.name}
             </h3>
-            <p className="text-[11px] font-bold text-[#0065ae] dark:text-sky-400">
-              {t.liveDepartures}
-            </p>
+            <p className="text-[11px] text-[#686868] dark:text-[#999999]">{t.liveDepartures}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-0.5 shrink-0">
           <button
             type="button"
             onClick={() => toggleFavorite(asPlace)}
-            className="w-9 h-9 rounded-xl inline-flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-90 cursor-pointer"
+            className="w-8 h-8 rounded-md inline-flex items-center justify-center text-[#686868] hover:text-[#111111] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
             title={isFav ? t.removeFavorite : t.saveFavorite}
           >
-            <Star className={`w-4 h-4 ${isFav ? 'text-amber-500 fill-amber-400' : ''}`} />
+            <Star className={`w-4 h-4 ${isFav ? 'text-[#111111] dark:text-white fill-current' : ''}`} />
           </button>
           <button
             type="button"
@@ -158,7 +151,7 @@ export function StationPopup({ variant = 'floating' }: StationPopupProps) {
               setRefreshTick((n) => n + 1);
             }}
             disabled={loading}
-            className="w-9 h-9 rounded-xl inline-flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-90 cursor-pointer"
+            className="w-8 h-8 rounded-md inline-flex items-center justify-center text-[#686868] hover:text-[#111111] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
             title="Refresh departures"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -167,7 +160,7 @@ export function StationPopup({ variant = 'floating' }: StationPopupProps) {
             <button
               type="button"
               onClick={() => setSelectedStation(null)}
-              className="w-9 h-9 rounded-xl inline-flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              className="w-8 h-8 rounded-md inline-flex items-center justify-center text-[#686868] hover:text-[#111111] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
               aria-label="Close departures"
             >
               <X className="w-4 h-4" />
@@ -176,21 +169,17 @@ export function StationPopup({ variant = 'floating' }: StationPopupProps) {
         </div>
       </div>
 
-      {/* Departures List */}
-      <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80">
+      {/* Crisp SBB Timetable Departures List */}
+      <div className="flex-1 overflow-y-auto bg-white dark:bg-[#212121] divide-y divide-[#ececec] dark:divide-[#2e2e2e]">
         {loading && departures.length === 0 ? (
-          <div className="py-10 flex flex-col items-center justify-center gap-2.5 text-xs font-semibold text-slate-500">
-            <Loader2 className="w-6 h-6 animate-spin text-[#0065ae]" />
+          <div className="py-10 flex flex-col items-center justify-center gap-2 text-xs text-[#686868]">
+            <Loader2 className="w-5 h-5 animate-spin text-[#eb0000]" />
             <span>{t.loadingDepartures}</span>
           </div>
         ) : error ? (
-          <div className="p-5 text-xs font-semibold text-rose-600 dark:text-rose-400 text-center">
-            {error}
-          </div>
+          <div className="p-5 text-xs text-[#eb0000] text-center">{error}</div>
         ) : departures.length === 0 ? (
-          <div className="p-8 text-xs font-semibold text-slate-500 text-center">
-            {t.noDepartures}
-          </div>
+          <div className="p-8 text-xs text-[#686868] text-center">{t.noDepartures}</div>
         ) : (
           departures.map((dep) => {
             const mins = refMs > 0 ? minutesUntil(dep.realTimeTime, refMs) : null;
@@ -206,15 +195,15 @@ export function StationPopup({ variant = 'floating' }: StationPopupProps) {
                   line={dep.line}
                   color={dep.color}
                   textColor={dep.textColor}
-                  size="md"
+                  size="sm"
                 />
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-extrabold text-slate-900 dark:text-white truncate">
+                  <div className="text-[13px] font-medium text-[#111111] dark:text-white truncate">
                     {dep.headsign || dep.line}
                   </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                  <div className="text-[11px] text-[#686868] dark:text-[#999999] flex items-center gap-2 mt-0.5">
                     {dep.track && (
-                      <span className="font-bold">
+                      <span>
                         {t.platform} {dep.track}
                       </span>
                     )}
@@ -222,11 +211,11 @@ export function StationPopup({ variant = 'floating' }: StationPopupProps) {
                       <span
                         className={
                           dep.delayMinutes >= 1
-                            ? 'text-amber-600 dark:text-amber-400 font-extrabold'
-                            : 'text-emerald-600 dark:text-emerald-400 font-bold'
+                            ? 'text-[#eb0000] font-semibold'
+                            : 'text-[#007a3e] dark:text-[#34d399] font-medium'
                         }
                       >
-                        {dep.delayMinutes >= 1 ? `+${dep.delayMinutes} min` : t.onTime}
+                        {dep.delayMinutes >= 1 ? `+${dep.delayMinutes}'` : t.onTime}
                       </span>
                     )}
                   </div>
@@ -234,16 +223,14 @@ export function StationPopup({ variant = 'floating' }: StationPopupProps) {
                 <div className="text-right shrink-0">
                   {mins !== null && (
                     <div
-                      className={`text-sm font-extrabold tabular-nums leading-tight ${
-                        mins <= 1
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-[#0065ae] dark:text-sky-400'
+                      className={`text-sm font-bold tabular-nums leading-tight ${
+                        mins <= 1 ? 'text-[#eb0000]' : 'text-[#111111] dark:text-white'
                       }`}
                     >
-                      {mins === 0 ? t.now : `${mins} min`}
+                      {mins === 0 ? t.now : `${mins}'`}
                     </div>
                   )}
-                  <div className="font-mono text-[11px] font-bold tabular-nums text-slate-400">
+                  <div className="font-mono text-[11px] tabular-nums text-[#767676]">
                     {formatMunichTime(dep.realTimeTime, lang)}
                   </div>
                 </div>
@@ -253,16 +240,16 @@ export function StationPopup({ variant = 'floating' }: StationPopupProps) {
         )}
       </div>
 
-      {/* Chunky Thumb-Friendly Route Action Bar */}
+      {/* Restrained SBB Action Footer */}
       <div
-        className={`p-3 border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900 grid grid-cols-3 gap-2 shrink-0 ${
+        className={`p-3 border-t border-[#e5e5e5] dark:border-[#333333] bg-[#f6f6f6] dark:bg-[#1a1a1a] grid grid-cols-3 gap-2 shrink-0 ${
           variant === 'sheet' ? 'pb-safe-lg' : ''
         }`}
       >
         <button
           type="button"
           onClick={() => applyPlaceAs('start', asPlace)}
-          className="h-11 md:h-9 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95 transition-all cursor-pointer shadow-xs"
+          className="h-10 md:h-9 inline-flex items-center justify-center gap-1 px-2 rounded-lg text-xs font-medium bg-white hover:bg-[#f0f0f0] dark:bg-[#262626] dark:hover:bg-[#333333] border border-[#d4d4d4] dark:border-[#3d3d3d] text-[#111111] dark:text-white cursor-pointer"
         >
           <MapPin className="w-3.5 h-3.5" />
           {t.startHere}
@@ -270,7 +257,7 @@ export function StationPopup({ variant = 'floating' }: StationPopupProps) {
         <button
           type="button"
           onClick={() => applyPlaceAs('stop', asPlace)}
-          className="h-11 md:h-9 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-xs font-extrabold bg-amber-500 hover:bg-amber-600 text-white active:scale-95 transition-all cursor-pointer shadow-xs"
+          className="h-10 md:h-9 inline-flex items-center justify-center gap-1 px-2 rounded-lg text-xs font-medium bg-white hover:bg-[#f0f0f0] dark:bg-[#262626] dark:hover:bg-[#333333] border border-[#d4d4d4] dark:border-[#3d3d3d] text-[#111111] dark:text-white cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
           {t.addAsStop}
@@ -278,7 +265,7 @@ export function StationPopup({ variant = 'floating' }: StationPopupProps) {
         <button
           type="button"
           onClick={() => applyPlaceAs('end', asPlace)}
-          className="h-11 md:h-9 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-xl text-xs font-extrabold bg-rose-600 hover:bg-rose-700 text-white active:scale-95 transition-all cursor-pointer shadow-xs"
+          className="h-10 md:h-9 inline-flex items-center justify-center gap-1 px-2 rounded-lg text-xs font-semibold bg-[#eb0000] hover:bg-[#c60018] text-white cursor-pointer"
         >
           <Flag className="w-3.5 h-3.5" />
           {t.goHere}
@@ -292,7 +279,7 @@ export function StationPopup({ variant = 'floating' }: StationPopupProps) {
   }
 
   return (
-    <div className="hidden md:flex fixed z-30 right-3 bottom-4 w-[360px] max-w-[calc(100vw-24px)] max-h-[64vh] flex-col rounded-[24px] bg-white/96 dark:bg-[#0f172a]/96 backdrop-blur-xl border border-slate-200/90 dark:border-slate-700/80 shadow-2xl overflow-hidden">
+    <div className="hidden md:flex fixed z-30 right-3 bottom-4 w-[356px] max-w-[calc(100vw-24px)] max-h-[64vh] flex-col rounded-xl bg-white dark:bg-[#212121] border border-[#d4d4d4] dark:border-[#383838] shadow-xl overflow-hidden">
       {innerContent}
     </div>
   );

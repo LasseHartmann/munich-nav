@@ -6,7 +6,6 @@ import {
   Crosshair,
   Loader2,
   MapPin,
-  Search,
   Star,
   TrainFront,
   X,
@@ -40,7 +39,7 @@ function ModeMiniDots({ modes }: { modes?: string[] }) {
         <span
           key={c.label}
           style={{ backgroundColor: c.bg }}
-          className="text-[9px] font-extrabold text-white w-4 h-4 rounded-sm inline-flex items-center justify-center leading-none"
+          className="text-[9px] font-bold text-white w-4 h-4 rounded-[3px] inline-flex items-center justify-center leading-none"
         >
           {c.label}
         </span>
@@ -180,19 +179,18 @@ export function PlaceSearchInput({
 
   return (
     <div ref={containerRef} className="relative flex-1 min-w-0">
-      {/* Mobile: 44px thumb-friendly trigger that opens Full-Screen Mobile Search Overlay */}
+      {/* Mobile: 42px SBB flat input trigger opening Full-Screen Search */}
       <div className="md:hidden flex items-center gap-1">
         <button
           type="button"
           onClick={() => openMobileSearch(waypointUid)}
-          className="flex-1 min-w-0 h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/90 dark:bg-slate-800/90 px-3 flex items-center gap-2 text-left active:bg-slate-100 dark:active:bg-slate-700 transition-colors cursor-pointer"
+          className="flex-1 min-w-0 h-10 rounded-lg border border-[#d4d4d4] dark:border-[#3d3d3d] bg-[#f6f6f6] dark:bg-[#262626] px-3 flex items-center text-left active:bg-[#ececec] dark:active:bg-[#303030] transition-colors cursor-pointer"
         >
-          <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           <span
             className={`text-sm truncate ${
               value
-                ? 'font-bold text-slate-900 dark:text-white'
-                : 'font-medium text-slate-400 dark:text-slate-500'
+                ? 'font-medium text-[#111111] dark:text-white'
+                : 'font-normal text-[#767676] dark:text-[#888888]'
             }`}
           >
             {value ? value.name : placeholder}
@@ -202,7 +200,7 @@ export function PlaceSearchInput({
           <button
             type="button"
             onClick={() => onSelect(null)}
-            className="w-9 h-11 rounded-xl inline-flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 active:scale-95 shrink-0 cursor-pointer"
+            className="w-8 h-10 rounded-md inline-flex items-center justify-center text-[#767676] hover:text-[#111111] dark:hover:text-white shrink-0 cursor-pointer"
             aria-label="Clear stop"
           >
             <X className="w-4 h-4" />
@@ -210,7 +208,7 @@ export function PlaceSearchInput({
         )}
       </div>
 
-      {/* Desktop: Crisp inline autocomplete input */}
+      {/* Desktop: Clean SBB flat inline input */}
       <div className="hidden md:flex relative items-center">
         <input
           type="text"
@@ -222,10 +220,10 @@ export function PlaceSearchInput({
           }}
           placeholder={placeholder}
           aria-label={placeholder}
-          className="w-full h-9 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/90 px-3 pr-8 text-[13px] font-semibold text-slate-900 dark:text-slate-100 placeholder:font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0065ae]/40 focus:border-[#0065ae] transition-all"
+          className="w-full h-9 rounded-lg border border-[#d4d4d4] dark:border-[#3d3d3d] bg-[#f6f6f6] dark:bg-[#262626] px-3 pr-7 text-[13px] font-medium text-[#111111] dark:text-white placeholder:font-normal placeholder:text-[#767676] dark:placeholder:text-[#888888] focus:bg-white dark:focus:bg-[#1e1e1e] focus:outline-none focus:border-[#111111] dark:focus:border-white transition-colors"
         />
         {loading ? (
-          <Loader2 className="w-3.5 h-3.5 text-[#0065ae] animate-spin absolute right-2.5 pointer-events-none" />
+          <Loader2 className="w-3.5 h-3.5 text-[#686868] animate-spin absolute right-2.5 pointer-events-none" />
         ) : query ? (
           <button
             type="button"
@@ -234,7 +232,7 @@ export function PlaceSearchInput({
               onSelect(null);
               setOpen(true);
             }}
-            className="absolute right-2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+            className="absolute right-2 p-0.5 text-[#767676] hover:text-[#111111] dark:hover:text-white cursor-pointer"
             aria-label="Clear input"
           >
             <X className="w-3.5 h-3.5" />
@@ -243,26 +241,26 @@ export function PlaceSearchInput({
       </div>
 
       {open && (
-        <div className="hidden md:block absolute left-0 right-0 top-full mt-1.5 z-50 max-h-72 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl divide-y divide-slate-100 dark:divide-slate-800">
+        <div className="hidden md:block absolute left-0 right-0 top-full mt-1 z-50 max-h-72 overflow-y-auto rounded-lg border border-[#d4d4d4] dark:border-[#3d3d3d] bg-white dark:bg-[#1e1e1e] shadow-lg divide-y divide-[#ececec] dark:divide-[#2e2e2e]">
           {showSuggestions ? (
             <>
               <button
                 type="button"
                 onClick={handleUseMyLocation}
                 disabled={locating}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-xs font-bold text-[#0065ae] dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-xs font-medium text-[#111111] dark:text-white hover:bg-[#f6f6f6] dark:hover:bg-[#282828] transition-colors cursor-pointer"
               >
                 {locating ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#eb0000] shrink-0" />
                 ) : (
-                  <Crosshair className="w-3.5 h-3.5 shrink-0" />
+                  <Crosshair className="w-3.5 h-3.5 text-[#eb0000] shrink-0" />
                 )}
                 <span>{locating ? t.locating : t.myLocation}</span>
               </button>
 
               {favorites.length > 0 && (
                 <div className="py-1">
-                  <div className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                  <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#767676]">
                     {t.favorites}
                   </div>
                   {favorites.slice(0, 4).map((p) => (
@@ -270,15 +268,15 @@ export function PlaceSearchInput({
                       key={p.id}
                       type="button"
                       onClick={() => handleChoose(p)}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-[#f6f6f6] dark:hover:bg-[#282828] cursor-pointer"
                     >
-                      <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400 shrink-0" />
+                      <Star className="w-3.5 h-3.5 text-[#111111] dark:text-white fill-current shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                        <div className="text-xs font-medium text-[#111111] dark:text-white truncate">
                           {p.name}
                         </div>
                         {p.subtitle && (
-                          <div className="text-[11px] text-slate-500 truncate">{p.subtitle}</div>
+                          <div className="text-[11px] text-[#767676] truncate">{p.subtitle}</div>
                         )}
                       </div>
                     </button>
@@ -288,7 +286,7 @@ export function PlaceSearchInput({
 
               {recents.length > 0 && (
                 <div className="py-1">
-                  <div className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                  <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#767676]">
                     {t.recent}
                   </div>
                   {recents.slice(0, 3).map((p) => (
@@ -296,15 +294,15 @@ export function PlaceSearchInput({
                       key={p.id}
                       type="button"
                       onClick={() => handleChoose(p)}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-[#f6f6f6] dark:hover:bg-[#282828] cursor-pointer"
                     >
-                      <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <Clock className="w-3.5 h-3.5 text-[#767676] shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                        <div className="text-xs font-medium text-[#111111] dark:text-white truncate">
                           {p.name}
                         </div>
                         {p.subtitle && (
-                          <div className="text-[11px] text-slate-500 truncate">{p.subtitle}</div>
+                          <div className="text-[11px] text-[#767676] truncate">{p.subtitle}</div>
                         )}
                       </div>
                     </button>
@@ -313,7 +311,7 @@ export function PlaceSearchInput({
               )}
 
               <div className="py-1">
-                <div className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#767676]">
                   {t.quickPlaces}
                 </div>
                 {MUNICH_QUICK_PLACES.map((p) => (
@@ -321,18 +319,18 @@ export function PlaceSearchInput({
                     key={p.id}
                     type="button"
                     onClick={() => handleChoose(p)}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-[#f6f6f6] dark:hover:bg-[#282828] cursor-pointer"
                   >
                     {p.category === 'station' ? (
-                      <TrainFront className="w-3.5 h-3.5 text-[#0065ae] shrink-0" />
+                      <TrainFront className="w-3.5 h-3.5 text-[#444444] dark:text-[#b7b7b7] shrink-0" />
                     ) : (
-                      <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <MapPin className="w-3.5 h-3.5 text-[#767676] shrink-0" />
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                      <div className="text-xs font-medium text-[#111111] dark:text-white truncate">
                         {p.name}
                       </div>
-                      <div className="text-[11px] text-slate-500 truncate">{p.subtitle}</div>
+                      <div className="text-[11px] text-[#767676] truncate">{p.subtitle}</div>
                     </div>
                     <ModeMiniDots modes={p.transitModes} />
                   </button>
@@ -340,12 +338,12 @@ export function PlaceSearchInput({
               </div>
             </>
           ) : loading && results.length === 0 ? (
-            <div className="px-3 py-4 text-center text-xs font-medium text-slate-500 flex items-center justify-center gap-2">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0065ae]" />
+            <div className="px-3 py-4 text-center text-xs text-[#686868] flex items-center justify-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
               <span>{t.searchPrompt}...</span>
             </div>
           ) : results.length === 0 ? (
-            <div className="px-3 py-4 text-center text-xs text-slate-500">{t.noResults}</div>
+            <div className="px-3 py-4 text-center text-xs text-[#686868]">{t.noResults}</div>
           ) : (
             <div className="py-1">
               {results.map((p) => {
@@ -353,7 +351,7 @@ export function PlaceSearchInput({
                 return (
                   <div
                     key={p.id}
-                    className="flex items-center gap-1 px-2 py-1 hover:bg-slate-50 dark:hover:bg-slate-800/80"
+                    className="flex items-center gap-1 px-2 py-1 hover:bg-[#f6f6f6] dark:hover:bg-[#282828]"
                   >
                     <button
                       type="button"
@@ -361,16 +359,16 @@ export function PlaceSearchInput({
                       className="flex items-center gap-2 flex-1 min-w-0 py-1 px-1 text-left cursor-pointer"
                     >
                       {p.category === 'station' ? (
-                        <TrainFront className="w-3.5 h-3.5 text-[#0065ae] shrink-0" />
+                        <TrainFront className="w-3.5 h-3.5 text-[#444444] dark:text-[#b7b7b7] shrink-0" />
                       ) : (
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <MapPin className="w-3.5 h-3.5 text-[#767676] shrink-0" />
                       )}
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                        <div className="text-xs font-medium text-[#111111] dark:text-white truncate">
                           {p.name}
                         </div>
                         {p.subtitle && (
-                          <div className="text-[11px] text-slate-500 truncate">{p.subtitle}</div>
+                          <div className="text-[11px] text-[#767676] truncate">{p.subtitle}</div>
                         )}
                       </div>
                       <ModeMiniDots modes={p.transitModes} />
@@ -382,10 +380,10 @@ export function PlaceSearchInput({
                         toggleFavorite(p);
                       }}
                       title={starred ? t.removeFavorite : t.saveFavorite}
-                      className="p-1.5 text-slate-400 hover:text-amber-500 cursor-pointer shrink-0"
+                      className="p-1.5 text-[#767676] hover:text-[#111111] dark:hover:text-white cursor-pointer shrink-0"
                     >
                       <Star
-                        className={`w-3.5 h-3.5 ${starred ? 'text-amber-500 fill-amber-400' : ''}`}
+                        className={`w-3.5 h-3.5 ${starred ? 'text-[#111111] dark:text-white fill-current' : ''}`}
                       />
                     </button>
                   </div>

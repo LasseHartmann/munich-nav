@@ -48,24 +48,23 @@ export function MapControls() {
     );
   };
 
-  // Dynamic thumb-zone bottom offset right above the mobile bottom sheet
   const mobileBottomStyle: React.CSSProperties =
     mobileSheetSnap === 'peek'
-      ? { bottom: 'calc(max(162px, 18dvh + env(safe-area-inset-bottom)) + 14px)' }
-      : { bottom: 'calc(50dvh + 12px)' };
+      ? { bottom: 'calc(max(158px, 18dvh + env(safe-area-inset-bottom)) + 12px)' }
+      : { bottom: 'calc(50dvh + 10px)' };
 
   return (
     <>
-      {/* Desktop Top-Right Floating Controls */}
+      {/* Desktop Top-Right SBB Monochrome Controls */}
       <div className="hidden md:flex fixed top-3 right-3 z-20 flex-col items-end gap-2 pointer-events-none">
-        <div className="pointer-events-auto inline-flex items-center p-1 rounded-2xl bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-700/80 shadow-xl">
+        <div className="pointer-events-auto inline-flex items-center p-0.5 rounded-lg bg-white dark:bg-[#212121] border border-[#d4d4d4] dark:border-[#383838] shadow-md">
           <button
             type="button"
             onClick={() => setMapStyle('standard')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all active:scale-95 cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
               !isHybrid
-                ? 'bg-[#0065ae] text-white shadow-sm'
-                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-[#212121] text-white dark:bg-white dark:text-[#111111] font-semibold'
+                : 'text-[#686868] dark:text-[#999999] hover:text-[#111111] dark:hover:text-white'
             }`}
           >
             <MapIcon className="w-3.5 h-3.5" />
@@ -74,10 +73,10 @@ export function MapControls() {
           <button
             type="button"
             onClick={() => setMapStyle('hybrid')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all active:scale-95 cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
               isHybrid
-                ? 'bg-[#0065ae] text-white shadow-sm'
-                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-[#212121] text-white dark:bg-white dark:text-[#111111] font-semibold'
+                : 'text-[#686868] dark:text-[#999999] hover:text-[#111111] dark:hover:text-white'
             }`}
           >
             <Satellite className="w-3.5 h-3.5" />
@@ -90,10 +89,10 @@ export function MapControls() {
             type="button"
             onClick={toggleShowStations}
             title={t.mvvStations}
-            className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-extrabold backdrop-blur-xl border shadow-lg active:scale-95 transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-medium border shadow-md transition-colors cursor-pointer ${
               showStations
-                ? 'bg-[#0065ae] border-[#0065ae] text-white'
-                : 'bg-white/95 dark:bg-[#0f172a]/95 border-slate-200/90 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800'
+                ? 'bg-[#212121] border-[#212121] text-white dark:bg-white dark:border-white dark:text-[#111111] font-semibold'
+                : 'bg-white dark:bg-[#212121] border-[#d4d4d4] dark:border-[#383838] text-[#444444] dark:text-[#cccccc] hover:text-[#111111]'
             }`}
           >
             <TrainFront className="w-3.5 h-3.5" />
@@ -106,7 +105,7 @@ export function MapControls() {
               onClick={triggerFitBounds}
               title="Fit route to view"
               aria-label="Fit route to view"
-              className="w-9 h-9 rounded-xl inline-flex items-center justify-center bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-700/80 shadow-lg text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 active:scale-95 cursor-pointer"
+              className="w-9 h-9 rounded-lg inline-flex items-center justify-center bg-white dark:bg-[#212121] border border-[#d4d4d4] dark:border-[#383838] shadow-md text-[#212121] dark:text-[#e5e5e5] hover:bg-[#f6f6f6] dark:hover:bg-[#2c2c2c] cursor-pointer"
             >
               <Maximize2 className="w-4 h-4" />
             </button>
@@ -118,10 +117,10 @@ export function MapControls() {
             disabled={locating}
             title={t.myLocation}
             aria-label={t.myLocation}
-            className="w-9 h-9 rounded-xl inline-flex items-center justify-center bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-700/80 shadow-lg text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 active:scale-95 cursor-pointer disabled:opacity-60"
+            className="w-9 h-9 rounded-lg inline-flex items-center justify-center bg-white dark:bg-[#212121] border border-[#d4d4d4] dark:border-[#383838] shadow-md text-[#212121] dark:text-[#e5e5e5] hover:bg-[#f6f6f6] dark:hover:bg-[#2c2c2c] cursor-pointer disabled:opacity-60"
           >
             {locating ? (
-              <Loader2 className="w-4 h-4 animate-spin text-[#0065ae]" />
+              <Loader2 className="w-4 h-4 animate-spin text-[#eb0000]" />
             ) : (
               <Crosshair className="w-4 h-4" />
             )}
@@ -129,71 +128,67 @@ export function MapControls() {
         </div>
       </div>
 
-      {/* Mobile Right-Side Thumb-Zone Floating Action Stack (dynamically floats above the bottom sheet!) */}
+      {/* Mobile Right-Side Thumb-Zone SBB Action Stack */}
       <div
         style={mobileBottomStyle}
-        className={`md:hidden fixed right-3 z-20 flex flex-col items-end gap-2 transition-all duration-300 ${
+        className={`md:hidden fixed right-3 z-20 flex flex-col items-end gap-1.5 transition-all duration-200 ${
           mobileSheetSnap === 'full'
-            ? 'opacity-0 pointer-events-none translate-y-4'
+            ? 'opacity-0 pointer-events-none translate-y-3'
             : 'opacity-100 pointer-events-auto translate-y-0'
         }`}
       >
-        {/* Standard <-> Hybrid one-tap toggle pill */}
         <button
           type="button"
           onClick={() => setMapStyle(isHybrid ? 'standard' : 'hybrid')}
           aria-label={isHybrid ? t.mapStandard : t.mapHybrid}
-          className={`w-11 h-11 rounded-2xl flex flex-col items-center justify-center border-2 shadow-xl backdrop-blur-xl active:scale-90 transition-all cursor-pointer ${
+          className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center border shadow-md transition-colors cursor-pointer ${
             isHybrid
-              ? 'bg-[#0065ae] border-white/80 text-white'
-              : 'bg-white/95 dark:bg-[#0f172a]/95 border-slate-200/90 dark:border-slate-700 text-slate-800 dark:text-slate-100'
+              ? 'bg-[#212121] border-[#212121] text-white dark:bg-white dark:border-white dark:text-[#111111]'
+              : 'bg-white dark:bg-[#212121] border-[#d4d4d4] dark:border-[#383838] text-[#212121] dark:text-[#e5e5e5]'
           }`}
         >
-          {isHybrid ? <MapIcon className="w-4.5 h-4.5" /> : <Satellite className="w-4.5 h-4.5" />}
-          <span className="text-[8px] font-extrabold uppercase leading-none mt-0.5">
+          {isHybrid ? <MapIcon className="w-4 h-4" /> : <Satellite className="w-4 h-4" />}
+          <span className="text-[8px] font-semibold uppercase leading-none mt-0.5">
             {isHybrid ? 'MAP' : 'SAT'}
           </span>
         </button>
 
-        {/* MVV Stops toggle */}
         <button
           type="button"
           onClick={toggleShowStations}
           aria-label={t.mvvStations}
-          className={`w-11 h-11 rounded-2xl flex flex-col items-center justify-center border-2 shadow-xl backdrop-blur-xl active:scale-90 transition-all cursor-pointer ${
+          className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center border shadow-md transition-colors cursor-pointer ${
             showStations
-              ? 'bg-[#0065ae] border-white/80 text-white'
-              : 'bg-white/95 dark:bg-[#0f172a]/95 border-slate-200/90 dark:border-slate-700 text-slate-700 dark:text-slate-200'
+              ? 'bg-[#212121] border-[#212121] text-white dark:bg-white dark:border-white dark:text-[#111111]'
+              : 'bg-white dark:bg-[#212121] border-[#d4d4d4] dark:border-[#383838] text-[#444444] dark:text-[#cccccc]'
           }`}
         >
-          <TrainFront className="w-4.5 h-4.5" />
-          <span className="text-[8px] font-extrabold uppercase leading-none mt-0.5">MVV</span>
+          <TrainFront className="w-4 h-4" />
+          <span className="text-[8px] font-semibold uppercase leading-none mt-0.5">MVV</span>
         </button>
 
-        {/* Fit route button */}
         {hasRoute && (
           <button
             type="button"
             onClick={triggerFitBounds}
             aria-label="Fit route to view"
-            className="w-11 h-11 rounded-2xl flex items-center justify-center bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-xl border-2 border-slate-200/90 dark:border-slate-700 shadow-xl text-slate-800 dark:text-slate-100 active:scale-90 transition-all cursor-pointer"
+            className="w-10 h-10 rounded-lg flex items-center justify-center bg-white dark:bg-[#212121] border border-[#d4d4d4] dark:border-[#383838] shadow-md text-[#212121] dark:text-[#e5e5e5] cursor-pointer"
           >
-            <Maximize2 className="w-4.5 h-4.5" />
+            <Maximize2 className="w-4 h-4" />
           </button>
         )}
 
-        {/* Locate Me GPS button */}
         <button
           type="button"
           onClick={handleLocateMe}
           disabled={locating}
           aria-label={t.myLocation}
-          className="w-11 h-11 rounded-2xl flex items-center justify-center bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-xl border-2 border-slate-200/90 dark:border-slate-700 shadow-xl text-[#0065ae] dark:text-sky-400 active:scale-90 transition-all cursor-pointer disabled:opacity-60"
+          className="w-10 h-10 rounded-lg flex items-center justify-center bg-white dark:bg-[#212121] border border-[#d4d4d4] dark:border-[#383838] shadow-md text-[#111111] dark:text-white cursor-pointer disabled:opacity-60"
         >
           {locating ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin text-[#eb0000]" />
           ) : (
-            <Crosshair className="w-5 h-5" />
+            <Crosshair className="w-4 h-4" />
           )}
         </button>
       </div>

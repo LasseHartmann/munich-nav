@@ -1,11 +1,11 @@
 {
-  "name": "MucNav — Munich Multi-Stop Navigation",
+  "name": "MucNav — Munich Navigation",
   "short_name": "MucNav",
   "description": "Free Munich navigation with multi-stop public transport (MVV), walking, cycling, driving, and standard & hybrid maps.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0065ae",
+  "background_color": "#f6f6f6",
+  "theme_color": "#eb0000",
   "icons": [
     {
       "src": "/icons/icon.svg",

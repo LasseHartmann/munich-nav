@@ -2,7 +2,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  --font-sans: var(--font-jakarta);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains);
 }
 
@@ -28,22 +28,22 @@ body {
   padding-bottom: max(1.25rem, calc(env(safe-area-inset-bottom) + 0.75rem));
 }
 
-/* Tabular numbers for clocks, countdowns, and distances */
+/* Tabular numbers for Swiss timetable clocks, countdowns, and distances */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
 
-/* Refine MapLibre native controls to blend with Citymapper-style MucNav surfaces */
+/* Clean SBB-inspired MapLibre native controls */
 .maplibregl-ctrl-group {
-  border-radius: 14px !important;
+  border-radius: 8px !important;
   overflow: hidden;
-  border: 1.5px solid rgba(148, 163, 184, 0.35) !important;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16) !important;
+  border: 1px solid #d4d4d4 !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08) !important;
 }
 
 .dark .maplibregl-ctrl-group {
-  background-color: rgba(15, 23, 42, 0.94) !important;
-  border-color: rgba(51, 65, 85, 0.9) !important;
+  background-color: #212121 !important;
+  border-color: #383838 !important;
 }
 
 .dark .maplibregl-ctrl-group button {
@@ -51,33 +51,33 @@ body {
 }
 
 .dark .maplibregl-ctrl-attrib {
-  background-color: rgba(15, 23, 42, 0.8) !important;
-  color: #cbd5e1 !important;
+  background-color: rgba(21, 21, 21, 0.85) !important;
+  color: #b7b7b7 !important;
 }
 
 .dark .maplibregl-ctrl-attrib a {
-  color: #7dd3fc !important;
+  color: #e5e5e5 !important;
 }
 
 /* Keep MapLibre attribution cleanly to the right of the floating desktop sidebar */
 @media (min-width: 768px) {
   .maplibregl-ctrl-attrib {
-    max-width: calc(100vw - 468px) !important;
+    max-width: calc(100vw - 456px) !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 }
 
-/* Mobile: rely on native pinch-to-zoom & place compact attribution discreetly at top-left below safe area */
+/* Mobile: rely on native pinch-to-zoom & keep compact attribution discreet at top-right */
 @media (max-width: 767px) {
   .maplibregl-ctrl-group {
     display: none !important;
   }
   .maplibregl-ctrl-bottom-right {
     bottom: auto !important;
-    top: max(0.65rem, env(safe-area-inset-top)) !important;
-    right: 0.65rem !important;
+    top: max(0.6rem, env(safe-area-inset-top)) !important;
+    right: 0.6rem !important;
   }
   .maplibregl-ctrl-attrib {
     font-size: 10px !important;
@@ -94,10 +94,10 @@ body {
   display: none;
 }
 
-/* Clean thin scrollbars */
+/* Discreet thin scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -105,10 +105,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.45);
+  background: rgba(115, 115, 115, 0.35);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.7);
+  background: rgba(115, 115, 115, 0.6);
 }

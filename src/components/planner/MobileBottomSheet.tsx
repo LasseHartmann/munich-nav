@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Compass, Navigation } from 'lucide-react';
+import { Navigation } from 'lucide-react';
 import { formatDistance, formatDuration, formatMunichTime } from '@/lib/geo';
 import { getTranslations } from '@/lib/i18n';
 import { useNavStore, type MobileSheetSnap } from '@/store/useNavStore';
@@ -17,13 +17,13 @@ import { RouteResults } from './RouteResults';
 const SNAP_ORDER: MobileSheetSnap[] = ['peek', 'half', 'full'];
 
 const SNAP_HEIGHTS_VH: Record<MobileSheetSnap, number> = {
-  peek: 20, // ~165px on iPhone 14 — keeps ~80% of map clear
-  half: 50, // balanced 50/50 map & planner view
-  full: 91, // full-height directions & editing below status bar
+  peek: 20,
+  half: 50,
+  full: 91,
 };
 
 function getSnapHeightPx(s: MobileSheetSnap, vh: number): number {
-  if (s === 'peek') return Math.max(162, Math.round(vh * 0.19));
+  if (s === 'peek') return Math.max(158, Math.round(vh * 0.19));
   return Math.round((vh * SNAP_HEIGHTS_VH[s]) / 100);
 }
 
@@ -49,7 +49,6 @@ export function MobileBottomSheet() {
   const sheetRef = useRef<HTMLDivElement>(null);
   const scrollBodyRef = useRef<HTMLDivElement>(null);
 
-  // Scroll sheet content smoothly back to top whenever a new route arrives so the Hero Card is front & center
   useEffect(() => {
     if (transitPlan || roadRoute) {
       scrollBodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -69,7 +68,6 @@ export function MobileBottomSheet() {
   } | null>(null);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    // Allow normal taps on real interactive controls (Share, DE, Theme, Mode tabs, GO button)
     if ((e.target as HTMLElement).closest('button, input, a, select, textarea')) return;
 
     const vh = window.innerHeight || 844;
@@ -89,7 +87,7 @@ export function MobileBottomSheet() {
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
-      // Safe ignore if pointer capture isn't supported
+      // Safe ignore
     }
   };
 
@@ -103,7 +101,6 @@ export function MobileBottomSheet() {
 
     const now = performance.now();
     d.samples.push({ y: e.clientY, t: now });
-    // Keep only recent samples within the last 110ms for clean, jitter-free release velocity
     while (d.samples.length > 2 && now - d.samples[0].t > 110) {
       d.samples.shift();
     }
@@ -130,7 +127,6 @@ export function MobileBottomSheet() {
       // Safe ignore
     }
 
-    // Pressing/tapping without dragging does nothing
     if (!d.moved) {
       setDragHeightPx(null);
       return;
@@ -140,25 +136,18 @@ export function MobileBottomSheet() {
     const finalPx = d.currentHeightPx;
     const now = performance.now();
 
-    // Compute smooth release velocity (px/ms; positive = flicking UP, negative = flicking DOWN)
     let velocityPxPerMs = 0;
     const latest = d.samples[d.samples.length - 1];
-    // If finger paused for >90ms before releasing, treat as deliberate placement (zero momentum)
     if (latest && now - latest.t <= 90 && d.samples.length >= 2) {
       const oldest = d.samples[0];
       const dt = Math.max(16, latest.t - oldest.t);
       velocityPxPerMs = (oldest.y - latest.y) / dt;
     }
 
-    // Project where the sheet would naturally coast with momentum (~220ms coast window)
     const minPx = getSnapHeightPx('peek', vh);
     const maxPx = getSnapHeightPx('full', vh);
-    const projectedPx = Math.min(
-      maxPx,
-      Math.max(minPx, finalPx + velocityPxPerMs * 220)
-    );
+    const projectedPx = Math.min(maxPx, Math.max(minPx, finalPx + velocityPxPerMs * 220));
 
-    // Spring to whichever of the 3 snap positions (peek, half, full) is closest to the momentum projection
     let closestSnap: MobileSheetSnap = snap;
     let smallestDist = Infinity;
     for (const candidate of SNAP_ORDER) {
@@ -169,7 +158,6 @@ export function MobileBottomSheet() {
       }
     }
 
-    // Faster flicks snap crisply; gentle releases settle smoothly
     const dynamicMs = Math.max(240, Math.min(390, Math.round(375 - Math.abs(velocityPxPerMs) * 65)));
     setSpringDurationMs(dynamicMs);
     setDragHeightPx(null);
@@ -183,99 +171,91 @@ export function MobileBottomSheet() {
     : {
         height:
           snap === 'peek'
-            ? 'max(162px, calc(18dvh + env(safe-area-inset-bottom)))'
+            ? 'max(158px, calc(18dvh + env(safe-area-inset-bottom)))'
             : `${SNAP_HEIGHTS_VH[snap]}dvh`,
         transition: `height ${springDurationMs}ms cubic-bezier(0.34, 1.16, 0.64, 1)`,
       };
 
-  // Peek summary values when a route is active
   const firstTransit = transitPlan?.legs[0]?.alternatives[transitPlan.legs[0].selectedIndex];
   const lastTransit =
     transitPlan?.legs[transitPlan.legs.length - 1]?.alternatives[
       transitPlan.legs[transitPlan.legs.length - 1].selectedIndex
     ];
 
-  // Show full content when above peek OR while dragging up past peek so content reveals smoothly
   const showBodyContent = snap !== 'peek' || (isDragging && dragHeightPx > 210);
 
   return (
     <div
       ref={sheetRef}
       style={sheetStyle}
-      className="md:hidden fixed inset-x-0 bottom-0 z-20 flex flex-col rounded-t-[28px] bg-white/97 dark:bg-[#0f172a]/97 backdrop-blur-xl border-t-2 border-slate-200/90 dark:border-slate-700/80 shadow-[0_-12px_40px_rgba(15,23,42,0.22)] overflow-hidden will-change-[height]"
+      className="md:hidden fixed inset-x-0 bottom-0 z-20 flex flex-col rounded-t-2xl bg-[#f6f6f6] dark:bg-[#151515] border-t border-[#d4d4d4] dark:border-[#333333] shadow-[0_-6px_28px_rgba(0,0,0,0.16)] overflow-hidden will-change-[height]"
     >
-      {/* Pure Drag-Only Handle & Header Zone */}
+      {/* White SBB Top Header & Pure Drag-Only Pull Tab */}
       <div
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        className="touch-none select-none shrink-0"
+        className="touch-none select-none shrink-0 bg-white dark:bg-[#1e1e1e]"
       >
-        {/* Pull Tab (drag-only — pressing/tapping does nothing) */}
         <div
           data-testid="sheet-pull-tab"
           aria-label="Drag to resize bottom sheet"
           className="w-full pt-3 pb-2.5 flex items-center justify-center cursor-grab active:cursor-grabbing"
         >
           <span
-            className={`h-1.5 rounded-full transition-all duration-150 ${
+            className={`h-1 rounded-full transition-all duration-150 ${
               isDragging
-                ? 'w-16 bg-[#0065ae] dark:bg-sky-400'
-                : 'w-12 bg-slate-300 dark:bg-slate-600'
+                ? 'w-14 bg-[#111111] dark:bg-white'
+                : 'w-10 bg-[#cccccc] dark:bg-[#525252]'
             }`}
           />
         </div>
 
-        {/* Single-Sheet Swap Header OR Planner Header */}
         {!showingStation && !showingPin && (
-          <div className="px-4 pb-2.5 space-y-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0 text-left">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0065ae] to-[#00a984] flex items-center justify-center text-white shadow-sm shrink-0">
-                  <Compass className="w-4.5 h-4.5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
-                    {t.appName}
-                  </div>
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                    {t.appTagline}
-                  </div>
-                </div>
+          <div>
+            <div className="px-4 pb-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  aria-hidden="true"
+                  className="w-[3px] h-4 bg-[#eb0000] rounded-xs shrink-0"
+                />
+                <span className="text-[15px] font-bold tracking-tight text-[#111111] dark:text-white leading-none">
+                  {t.appName}
+                </span>
+                <span className="text-xs text-[#767676] dark:text-[#888888] truncate">
+                  München
+                </span>
               </div>
 
               <TopBarControls />
             </div>
 
-            {/* Peek Mode: ultra-glanceable active trip strip OR mode selector */}
             {!showBodyContent && hasRoute ? (
-              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-[#0065ae]/10 dark:bg-[#0065ae]/25 border border-[#0065ae]/25">
-                <div className="flex-1 min-w-0 text-left flex items-center gap-2">
-                  <div className="min-w-0">
-                    <div className="text-base font-extrabold text-slate-900 dark:text-white tabular-nums leading-tight">
-                      {mode === 'transit' && transitPlan
-                        ? formatDuration(transitPlan.totalDurationSeconds, lang)
-                        : roadRoute
-                          ? `${formatDuration(roadRoute.totalDurationSeconds, lang)} · ${formatDistance(roadRoute.totalDistanceMeters, lang)}`
-                          : ''}
-                    </div>
-                    {mode === 'transit' && firstTransit && lastTransit && (
-                      <div className="text-xs font-mono font-bold text-[#0065ae] dark:text-sky-300 tabular-nums">
-                        {formatMunichTime(firstTransit.startTime, lang)} →{' '}
-                        {formatMunichTime(lastTransit.endTime, lang)}
-                      </div>
-                    )}
+              <div className="px-4 pb-3 pt-1 flex items-center justify-between gap-2 border-t border-[#ececec] dark:border-[#2e2e2e]">
+                <div className="min-w-0">
+                  <div className="text-base font-bold text-[#111111] dark:text-white tabular-nums leading-tight">
+                    {mode === 'transit' && transitPlan
+                      ? formatDuration(transitPlan.totalDurationSeconds, lang)
+                      : roadRoute
+                        ? `${formatDuration(roadRoute.totalDurationSeconds, lang)} · ${formatDistance(roadRoute.totalDistanceMeters, lang)}`
+                        : ''}
                   </div>
+                  {mode === 'transit' && firstTransit && lastTransit && (
+                    <div className="text-xs font-mono font-medium text-[#686868] dark:text-[#999999] tabular-nums">
+                      {formatMunichTime(firstTransit.startTime, lang)} –{' '}
+                      {formatMunichTime(lastTransit.endTime, lang)}
+                    </div>
+                  )}
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setLiveFollowActive(!liveFollowActive)}
-                  className={`h-9 px-3.5 rounded-xl text-xs font-extrabold inline-flex items-center gap-1 shrink-0 cursor-pointer ${
+                  className={`h-9 px-3.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1 shrink-0 cursor-pointer ${
                     liveFollowActive
-                      ? 'bg-rose-500 text-white'
-                      : 'bg-[#0065ae] text-white shadow-xs'
+                      ? 'bg-[#212121] text-white dark:bg-white dark:text-[#111111]'
+                      : 'bg-[#eb0000] hover:bg-[#c60018] text-white'
                   }`}
                 >
                   <Navigation className="w-3.5 h-3.5" />
@@ -289,7 +269,7 @@ export function MobileBottomSheet() {
         )}
       </div>
 
-      {/* Sheet Body: Swaps cleanly between Station Departures, Map Pin Card, or Route Planner */}
+      {/* Sheet Body */}
       {showingStation ? (
         <StationPopup variant="sheet" />
       ) : showingPin ? (
@@ -298,9 +278,8 @@ export function MobileBottomSheet() {
         showBodyContent && (
           <div
             ref={scrollBodyRef}
-            className="flex-1 overflow-y-auto px-4 pb-safe-lg space-y-3 border-t border-slate-100 dark:border-slate-800/80 pt-3"
+            className="flex-1 overflow-y-auto px-3.5 pb-safe-lg space-y-3 pt-3"
           >
-            {/* Compact trip summary bar when a route is active, or full StopList editor */}
             {hasRoute && !stopsEditing ? (
               <div className="space-y-2">
                 <CompactTripBar />
@@ -308,7 +287,7 @@ export function MobileBottomSheet() {
                 {mode === 'foot' && <WalkOptionsBar />}
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="p-3 rounded-lg bg-white dark:bg-[#212121] border border-[#dcdcdc] dark:border-[#333333] space-y-2.5">
                 {hasRoute && stopsEditing && (
                   <div className="flex justify-end">
                     <button
@@ -317,7 +296,7 @@ export function MobileBottomSheet() {
                         setStopsEditing(false);
                         setSnap('half');
                       }}
-                      className="h-9 px-3.5 rounded-xl text-xs font-extrabold bg-[#0065ae] text-white active:scale-95 cursor-pointer"
+                      className="h-8 px-3 rounded-md text-xs font-semibold bg-[#eb0000] hover:bg-[#c60018] text-white cursor-pointer"
                     >
                       {t.doneEditing}
                     </button>

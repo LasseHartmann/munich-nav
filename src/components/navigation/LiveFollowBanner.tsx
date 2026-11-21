@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Navigation, Radio, Sun, X } from 'lucide-react';
+import { Navigation, Sun, X } from 'lucide-react';
 import {
   computeRemainingDistanceMeters,
   findNearestCoordinateIndex,
@@ -26,7 +26,6 @@ export function LiveFollowBanner() {
 
   const [wakeLocked, setWakeLocked] = useState(false);
 
-  // Live GPS watchPosition
   useEffect(() => {
     if (!active) return;
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -52,7 +51,6 @@ export function LiveFollowBanner() {
     };
   }, [active, setUserLocation, setGpsError, flyTo, t.liveFollowError]);
 
-  // Screen Wake Lock while actively following a route on phone (keeps display from dimming!)
   useEffect(() => {
     if (!active || typeof navigator === 'undefined' || !('wakeLock' in navigator)) {
       return;
@@ -178,41 +176,37 @@ export function LiveFollowBanner() {
   if (!active) return null;
 
   return (
-    <div className="fixed pt-safe inset-x-3 top-0 md:inset-x-auto md:top-3 md:left-[calc(50%+195px)] md:-translate-x-1/2 z-30 md:w-[min(480px,calc(100vw-480px))] pointer-events-none">
-      <div className="pointer-events-auto rounded-2xl bg-[#0b1120]/96 text-white border-2 border-[#0065ae] shadow-2xl px-3.5 py-3 backdrop-blur-xl">
+    <div className="fixed pt-safe inset-x-3 top-0 md:inset-x-auto md:top-3 md:left-[calc(50%+195px)] md:-translate-x-1/2 z-30 md:w-[min(460px,calc(100vw-460px))] pointer-events-none">
+      <div className="pointer-events-auto rounded-lg bg-[#181818] text-white border border-[#333333] shadow-xl px-3.5 py-2.5">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0065ae] to-[#00a984] flex items-center justify-center shrink-0 shadow-md">
-              <Navigation className="w-5 h-5 text-white" />
-            </div>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Navigation className="w-4 h-4 text-[#eb0000] shrink-0" />
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
-                <span className="inline-flex items-center gap-1">
-                  <Radio className="w-3 h-3 animate-pulse" />
+              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-[#b7b7b7]">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#eb0000] animate-pulse" />
                   {t.liveFollowActive}
                 </span>
                 {wakeLocked && (
-                  <span className="inline-flex items-center gap-1 text-amber-300">
+                  <span className="inline-flex items-center gap-1 text-[#d4d4d4]">
                     <Sun className="w-3 h-3" />
                     <span className="hidden sm:inline">{t.screenAwake}</span>
                   </span>
                 )}
               </div>
               {gpsError ? (
-                <div className="text-xs text-amber-300 font-bold mt-0.5">{gpsError}</div>
+                <div className="text-xs text-[#f87171] font-medium mt-0.5">{gpsError}</div>
               ) : progress ? (
                 <>
-                  <div className="text-[15px] font-extrabold leading-tight mt-0.5 truncate">
+                  <div className="text-sm font-semibold leading-snug mt-0.5 truncate">
                     {progress.headline}
                   </div>
-                  <div className="text-xs font-bold text-sky-300 tabular-nums mt-0.5">
+                  <div className="text-xs text-[#b7b7b7] tabular-nums mt-0.5">
                     {progress.detail}
                   </div>
                 </>
               ) : (
-                <div className="text-xs font-semibold text-slate-300 mt-0.5">
-                  {t.liveFollowWaiting}
-                </div>
+                <div className="text-xs text-[#b7b7b7] mt-0.5">{t.liveFollowWaiting}</div>
               )}
             </div>
           </div>
@@ -220,9 +214,9 @@ export function LiveFollowBanner() {
           <button
             type="button"
             onClick={() => setLiveFollowActive(false)}
-            className="h-10 px-3 rounded-xl inline-flex items-center justify-center gap-1 text-xs font-extrabold bg-rose-600 hover:bg-rose-700 text-white active:scale-95 shrink-0 cursor-pointer"
+            className="h-9 px-3 rounded-md inline-flex items-center justify-center gap-1 text-xs font-semibold bg-[#eb0000] hover:bg-[#c60018] text-white shrink-0 cursor-pointer"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
             <span>{t.liveFollowStop}</span>
           </button>
         </div>

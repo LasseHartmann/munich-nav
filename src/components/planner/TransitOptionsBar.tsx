@@ -9,12 +9,12 @@ import { getTranslations } from '@/lib/i18n';
 import type { TransitFilterKey } from '@/lib/types';
 import { TransitTimeMenu } from './TransitTimeMenu';
 
-const FILTER_PILLS: { key: TransitFilterKey; activeBg: string; dotColor: string }[] = [
-  { key: 'SUBWAY', activeBg: '#0065ae', dotColor: '#0065ae' },
-  { key: 'SUBURBAN', activeBg: '#008e4e', dotColor: '#008e4e' },
-  { key: 'TRAM', activeBg: '#e30613', dotColor: '#e30613' },
-  { key: 'BUS', activeBg: '#00586a', dotColor: '#00586a' },
-  { key: 'REGIONAL', activeBg: '#1e3a8a', dotColor: '#1e3a8a' },
+const FILTER_PILLS: { key: TransitFilterKey; dotColor: string }[] = [
+  { key: 'SUBWAY', dotColor: '#0065ae' },
+  { key: 'SUBURBAN', dotColor: '#008e4e' },
+  { key: 'TRAM', dotColor: '#e30613' },
+  { key: 'BUS', dotColor: '#00586a' },
+  { key: 'REGIONAL', dotColor: '#1e3a8a' },
 ];
 
 function formatScheduleLabel(
@@ -58,66 +58,61 @@ export function TransitOptionsBar() {
   const t = getTranslations(lang);
 
   const scheduleLabel = formatScheduleLabel(departMode, departAtLocal, nowMs, t);
-
-  const triggerColorClass =
-    departMode === 'arriveBy'
-      ? 'bg-violet-600 border-violet-600 text-white shadow-xs'
-      : departMode === 'departAt'
-        ? 'bg-[#0065ae] border-[#0065ae] text-white shadow-xs'
-        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:border-[#0065ae]';
+  const isScheduled = departMode !== 'now';
 
   return (
-    <div className="space-y-2 pt-0.5">
-      {/* Proper Time Menu Trigger + MVV Filter Pills */}
+    <div className="pt-0.5">
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+        {/* SBB Clean Time Trigger */}
         <button
           type="button"
           onClick={() => setMenuOpen(true)}
           data-testid="transit-time-trigger"
-          className={`inline-flex items-center gap-1.5 h-8 md:h-7 px-3 rounded-full text-xs md:text-[11px] font-extrabold border transition-all active:scale-95 shrink-0 cursor-pointer tabular-nums ${triggerColorClass}`}
+          className={`inline-flex items-center gap-1.5 h-8 md:h-7 px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer tabular-nums ${
+            isScheduled
+              ? 'bg-[#212121] border-[#212121] text-white dark:bg-white dark:border-white dark:text-[#111111]'
+              : 'bg-white dark:bg-[#212121] border-[#d4d4d4] dark:border-[#3d3d3d] text-[#111111] dark:text-[#f5f5f5] hover:border-[#111111] dark:hover:border-[#888888]'
+          }`}
         >
           {departMode === 'arriveBy' ? (
-            <Flag className="w-3.5 h-3.5 shrink-0" />
+            <Flag className="w-3.5 h-3.5 text-[#eb0000] shrink-0" />
           ) : (
             <Clock
               className={`w-3.5 h-3.5 shrink-0 ${
-                departMode === 'now' ? 'text-[#0065ae] dark:text-sky-400' : 'text-white'
+                isScheduled ? 'text-[#eb0000]' : 'text-[#686868] dark:text-[#999999]'
               }`}
             />
           )}
           <span>{scheduleLabel}</span>
-          <ChevronDown className="w-3.5 h-3.5 opacity-80 shrink-0" />
+          <ChevronDown className="w-3.5 h-3.5 opacity-60 shrink-0" />
         </button>
 
-        <span className="w-px h-4 bg-slate-200 dark:bg-slate-700 shrink-0 mx-0.5" />
+        <span className="w-px h-4 bg-[#dcdcdc] dark:bg-[#383838] shrink-0 mx-0.5" />
 
-        {FILTER_PILLS.map(({ key, activeBg, dotColor }) => {
+        {/* Monochrome SBB Filter Chips with subtle authentic transit color dot */}
+        {FILTER_PILLS.map(({ key, dotColor }) => {
           const enabled = transitFilters.includes(key);
           return (
             <button
               key={key}
               type="button"
               onClick={() => toggleTransitFilter(key)}
-              style={enabled ? { backgroundColor: activeBg, borderColor: activeBg } : undefined}
-              className={`inline-flex items-center gap-1.5 h-8 md:h-7 px-2.5 rounded-full text-xs md:text-[11px] font-bold border transition-all active:scale-95 shrink-0 cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 h-8 md:h-7 px-2.5 rounded-md text-xs font-medium border transition-colors shrink-0 cursor-pointer ${
                 enabled
-                  ? 'text-white shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 line-through'
+                  ? 'bg-white dark:bg-[#252525] border-[#bdbdbd] dark:border-[#4a4a4a] text-[#111111] dark:text-[#f5f5f5]'
+                  : 'bg-[#f6f6f6] dark:bg-[#1a1a1a] border-[#e5e5e5] dark:border-[#2c2c2c] text-[#999999] dark:text-[#666666] line-through'
               }`}
             >
-              {!enabled && (
-                <span
-                  className="w-2 h-2 rounded-full shrink-0 opacity-45"
-                  style={{ backgroundColor: dotColor }}
-                />
-              )}
+              <span
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: enabled ? dotColor : '#a3a3a3', opacity: enabled ? 1 : 0.45 }}
+              />
               {t.transitFilters[key]}
             </button>
           );
         })}
       </div>
 
-      {/* Key resets internal draft state cleanly each time the menu opens */}
       {menuOpen && <TransitTimeMenu open={menuOpen} onClose={() => setMenuOpen(false)} />}
     </div>
   );

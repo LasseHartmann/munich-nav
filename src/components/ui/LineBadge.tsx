@@ -16,30 +16,30 @@ export function LineBadge({ mode, line, color, textColor, size = 'sm' }: LineBad
 
   const sizeClass =
     size === 'xs'
-      ? 'text-[10px] px-1.5 py-0.5 min-w-[26px]'
+      ? 'text-[10px] px-1.5 py-[2px] min-w-[24px]'
       : size === 'lg'
-        ? 'text-sm px-3 py-1.5 min-w-[44px]'
+        ? 'text-xs px-2.5 py-1 min-w-[40px]'
         : size === 'md'
-          ? 'text-xs px-2.5 py-1 min-w-[38px]'
-          : 'text-[11px] px-2 py-1 min-w-[32px]';
+          ? 'text-[11px] px-2 py-[3px] min-w-[34px]'
+          : 'text-[11px] px-1.5 py-[2px] min-w-[28px]';
 
   if (style.category === 'walk') {
     return (
       <span
-        className={`inline-flex items-center justify-center gap-1 rounded-lg font-bold tracking-tight bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-100 ${sizeClass}`}
+        className={`inline-flex items-center justify-center rounded-[3px] font-medium bg-[#ececec] text-[#333333] dark:bg-[#333333] dark:text-[#e5e5e5] ${sizeClass}`}
       >
         <Footprints className={size === 'xs' ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
       </span>
     );
   }
 
-  // Authentic Munich transit badge shapes: S-Bahn pill, U-Bahn/Tram/Bus bold rounded rectangles
-  const radiusClass = style.category === 'sbahn' ? 'rounded-full' : 'rounded-lg';
+  // Swiss/Munich signage precision: S-Bahn pill, U-Bahn/Tram/Bus crisp 3px rectangles, flat color
+  const radiusClass = style.category === 'sbahn' ? 'rounded-full' : 'rounded-[3px]';
 
   return (
     <span
       style={{ backgroundColor: style.bg, color: style.text }}
-      className={`inline-flex items-center justify-center font-extrabold tracking-tight leading-none shadow-sm ring-1 ring-black/10 select-none ${radiusClass} ${sizeClass}`}
+      className={`inline-flex items-center justify-center font-bold tracking-tight leading-none select-none ${radiusClass} ${sizeClass}`}
     >
       {style.label}
     </span>

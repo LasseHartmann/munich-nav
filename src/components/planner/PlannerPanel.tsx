@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Compass } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavStore } from '@/store/useNavStore';
 import { getTranslations } from '@/lib/i18n';
 import { TopBarControls } from '@/components/ui/TopBarControls';
@@ -21,71 +21,72 @@ export function PlannerPanel() {
 
   return (
     <>
-      {/* Desktop Floating Sidebar (Unified Citymapper-style Munich Design) */}
+      {/* Desktop Floating Sidebar (SBB Mobile Swiss Aesthetic) */}
       <aside
-        className={`hidden md:flex flex-col fixed top-3 left-3 bottom-3 z-20 transition-all duration-300 ${
-          desktopCollapsed ? 'w-12' : 'w-[424px] max-w-[calc(100vw-24px)]'
+        className={`hidden md:flex flex-col fixed top-3 left-3 bottom-3 z-20 transition-all duration-200 ${
+          desktopCollapsed ? 'w-11' : 'w-[412px] max-w-[calc(100vw-24px)]'
         }`}
       >
         {desktopCollapsed ? (
           <button
             type="button"
             onClick={() => setDesktopCollapsed(false)}
-            className="h-12 w-12 rounded-2xl bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-xl border-2 border-slate-200/90 dark:border-slate-700/80 shadow-xl flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 cursor-pointer"
+            className="h-11 w-11 rounded-lg bg-white dark:bg-[#212121] border border-[#d4d4d4] dark:border-[#383838] shadow-md flex items-center justify-center text-[#111111] dark:text-white hover:bg-[#f6f6f6] dark:hover:bg-[#2c2c2c] cursor-pointer"
             title="Expand planner"
             aria-label="Expand planner"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-4.5 h-4.5" />
           </button>
         ) : (
-          <div className="flex flex-col h-full rounded-[24px] bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-700/80 shadow-2xl overflow-hidden">
-            {/* Brand Header */}
-            <header className="px-4 py-3 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2 shrink-0">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0065ae] to-[#00a984] flex items-center justify-center text-white shadow-sm shrink-0">
-                  <Compass className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <h1 className="text-[15px] font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
+          <div className="flex flex-col h-full rounded-xl bg-[#f6f6f6] dark:bg-[#151515] border border-[#d4d4d4] dark:border-[#333333] shadow-xl overflow-hidden">
+            {/* Crisp White Top Header & Controls */}
+            <div className="bg-white dark:bg-[#1e1e1e] border-b border-[#e5e5e5] dark:border-[#303030] shrink-0">
+              <header className="px-4 py-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    aria-hidden="true"
+                    className="w-[3px] h-4.5 bg-[#eb0000] rounded-xs shrink-0"
+                  />
+                  <h1 className="text-[15px] font-bold tracking-tight text-[#111111] dark:text-white leading-none">
                     {t.appName}
                   </h1>
-                  <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                    {t.appTagline}
-                  </p>
+                  <span className="text-xs text-[#767676] dark:text-[#888888] truncate">
+                    München
+                  </span>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-1">
-                <TopBarControls />
-                <button
-                  type="button"
-                  onClick={() => setDesktopCollapsed(true)}
-                  className="h-9 w-8 rounded-xl inline-flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 cursor-pointer"
-                  title="Collapse panel"
-                  aria-label="Collapse panel"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-              </div>
-            </header>
+                <div className="flex items-center gap-0.5">
+                  <TopBarControls />
+                  <button
+                    type="button"
+                    onClick={() => setDesktopCollapsed(true)}
+                    className="h-8 w-7 rounded-md inline-flex items-center justify-center text-[#686868] hover:text-[#111111] hover:bg-black/5 dark:text-[#999999] dark:hover:text-white dark:hover:bg-white/10 cursor-pointer"
+                    title="Collapse panel"
+                    aria-label="Collapse panel"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                </div>
+              </header>
 
-            {/* Planner Controls */}
-            <div className="px-4 py-3 border-b border-slate-200/70 dark:border-slate-800 space-y-2.5 shrink-0">
               <ModeSelector />
-              <StopList />
-              {mode === 'transit' && <TransitOptionsBar />}
-              {mode === 'foot' && <WalkOptionsBar />}
+
+              <div className="px-4 py-3 space-y-2.5">
+                <StopList />
+                {mode === 'transit' && <TransitOptionsBar />}
+                {mode === 'foot' && <WalkOptionsBar />}
+              </div>
             </div>
 
-            {/* Scrollable Route Results */}
-            <div className="flex-1 overflow-y-auto px-4 py-3.5">
+            {/* Scrollable SBB Milk Body */}
+            <div className="flex-1 overflow-y-auto px-3.5 py-3">
               <RouteResults />
             </div>
           </div>
         )}
       </aside>
 
-      {/* Mobile Touch-Draggable 3-Snap Bottom Sheet */}
+      {/* Mobile Pure Drag-Only Bottom Sheet */}
       <MobileBottomSheet />
     </>
   );

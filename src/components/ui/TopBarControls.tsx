@@ -34,13 +34,12 @@ export function TopBarControls() {
     });
     const url = `${window.location.origin}${window.location.pathname}${qs ? `?${qs}` : ''}`;
 
-    // Use native Web Share API on mobile when available, else clipboard
     if (typeof navigator !== 'undefined' && navigator.share && window.innerWidth < 768) {
       try {
         await navigator.share({ title: 'MucNav Munich Route', url });
         return;
       } catch {
-        // User cancelled or unsupported — fall through to clipboard
+        // Fall through to clipboard
       }
     }
 
@@ -56,31 +55,28 @@ export function TopBarControls() {
   };
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-0.5">
       <button
         type="button"
         onClick={handleShare}
         title={t.shareLink}
         aria-label={t.shareLink}
-        className="inline-flex items-center justify-center gap-1 h-9 min-w-[36px] px-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200/80 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 active:scale-95 transition-all cursor-pointer"
+        className="inline-flex items-center justify-center gap-1 h-8 min-w-[32px] px-2 rounded-md text-xs font-medium text-[#444444] hover:text-[#111111] hover:bg-black/5 dark:text-[#b7b7b7] dark:hover:text-white dark:hover:bg-white/10 transition-colors cursor-pointer"
       >
         {copied ? (
           <>
-            <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-emerald-600 dark:text-emerald-400">{t.linkCopied}</span>
+            <Check className="w-3.5 h-3.5 text-[#007a3e] dark:text-[#34d399]" />
+            <span className="text-[#007a3e] dark:text-[#34d399]">{t.linkCopied}</span>
           </>
         ) : (
-          <>
-            <Share2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{t.shareLink}</span>
-          </>
+          <Share2 className="w-4 h-4" />
         )}
       </button>
 
       <button
         type="button"
         onClick={() => setLang(lang === 'en' ? 'de' : 'en')}
-        className="h-9 min-w-[36px] px-2 rounded-xl text-xs font-extrabold uppercase tracking-wide bg-slate-100 hover:bg-slate-200/80 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 active:scale-95 transition-all cursor-pointer"
+        className="h-8 min-w-[32px] px-1.5 rounded-md text-xs font-semibold uppercase tracking-wide text-[#444444] hover:text-[#111111] hover:bg-black/5 dark:text-[#b7b7b7] dark:hover:text-white dark:hover:bg-white/10 transition-colors cursor-pointer"
         title="Switch language (EN / DE)"
       >
         {lang === 'en' ? 'DE' : 'EN'}
@@ -89,15 +85,11 @@ export function TopBarControls() {
       <button
         type="button"
         onClick={toggleTheme}
-        className="h-9 w-9 rounded-xl inline-flex items-center justify-center bg-slate-100 hover:bg-slate-200/80 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 active:scale-95 transition-all cursor-pointer"
+        className="h-8 w-8 rounded-md inline-flex items-center justify-center text-[#444444] hover:text-[#111111] hover:bg-black/5 dark:text-[#b7b7b7] dark:hover:text-white dark:hover:bg-white/10 transition-colors cursor-pointer"
         title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
         aria-label="Toggle color theme"
       >
-        {theme === 'dark' ? (
-          <Sun className="w-4 h-4 text-amber-400" />
-        ) : (
-          <Moon className="w-4 h-4 text-slate-700" />
-        )}
+        {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
       </button>
     </div>
   );

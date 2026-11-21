@@ -522,19 +522,23 @@ export function MapCanvas() {
       const isStart = origIdx === 0;
       const isEnd = origIdx === waypoints.length - 1;
       const label = isStart ? 'A' : isEnd ? 'B' : String(origIdx);
-      const bg = isStart ? '#10b981' : isEnd ? '#f43f5e' : '#f59e0b';
+      const circleStyle = isStart
+        ? 'background:#ffffff;color:#111111;border:2.5px solid #111111;box-shadow:0 2px 8px rgba(0,0,0,0.28);'
+        : isEnd
+          ? 'background:#eb0000;color:#ffffff;border:2.5px solid #ffffff;box-shadow:0 2px 8px rgba(0,0,0,0.3);'
+          : 'background:#111111;color:#ffffff;border:2.5px solid #ffffff;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
 
       const el = document.createElement('div');
       el.className = 'flex flex-col items-center pointer-events-auto select-none';
       el.innerHTML = `
-        <div style="background:${bg};color:#fff;border:2.5px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,0.32);"
-             class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold">
+        <div style="${circleStyle}"
+             class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">
           ${label}
         </div>
         ${
           !isStart && !isEnd && mode === 'transit' && w.dwellMinutes > 0
-            ? `<div style="background:#0f172a;color:#fcd34d;border:1px solid rgba(255,255,255,0.25);"
-                    class="mt-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold shadow">
+            ? `<div style="background:#111111;color:#ffffff;border:1px solid rgba(255,255,255,0.35);"
+                    class="mt-0.5 px-1.5 py-[1px] rounded text-[9px] font-semibold shadow-xs">
                  +${w.dwellMinutes}m
                </div>`
             : ''
@@ -588,7 +592,7 @@ export function MapCanvas() {
 
     if (!clickMarkerRef.current) {
       const el = document.createElement('div');
-      el.innerHTML = `<div style="background:#0065ae;border:2.5px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,0.35);" class="w-4 h-4 rounded-full"></div>`;
+      el.innerHTML = `<div style="background:#eb0000;border:2.5px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,0.32);" class="w-4 h-4 rounded-full"></div>`;
       clickMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
         .setLngLat([mapClickPin.lon, mapClickPin.lat])
         .addTo(map);

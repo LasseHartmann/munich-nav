@@ -88,16 +88,16 @@ export function MucNavApp() {
       {/* Mobile full-screen stop search modal */}
       <MobileSearchModal />
 
-      {/* Mobile "Pick on Map" guidance pill */}
+      {/* Mobile "Pick on Map" guidance bar */}
       {mapPickTargetUid && (
         <div className="fixed pt-safe inset-x-3 top-0 z-40 flex justify-center pointer-events-none">
-          <div className="pointer-events-auto inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-[#0065ae] text-white shadow-2xl border border-white/25">
-            <MapPinned className="w-4.5 h-4.5 shrink-0" />
-            <span className="text-xs font-extrabold">{t.pickOnMapBanner}</span>
+          <div className="pointer-events-auto inline-flex items-center gap-2.5 px-3.5 py-2 rounded-lg bg-[#181818] text-white shadow-xl border border-[#383838]">
+            <MapPinned className="w-4 h-4 text-[#eb0000] shrink-0" />
+            <span className="text-xs font-medium">{t.pickOnMapBanner}</span>
             <button
               type="button"
               onClick={cancelMapPick}
-              className="ml-1 w-7 h-7 rounded-lg bg-white/20 hover:bg-white/30 inline-flex items-center justify-center active:scale-90 cursor-pointer"
+              className="ml-1 w-7 h-7 rounded-md hover:bg-white/15 inline-flex items-center justify-center cursor-pointer"
               aria-label={t.cancel}
             >
               <X className="w-4 h-4" />
