@@ -341,6 +341,14 @@ export function StopList({ variant = 'desktop' }: StopListProps) {
             </button>
           )}
 
+          {!isTransit && !isMultiStop && filledCount >= 2 && (
+            <span
+              aria-hidden="true"
+              data-testid="mobile-action-spacer"
+              className="w-[64px] shrink-0"
+            />
+          )}
+
           {canOptimize && (
             <button
               type="button"
