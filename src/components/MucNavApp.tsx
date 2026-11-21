@@ -11,7 +11,7 @@ import { StationPopup } from '@/components/map/StationPopup';
 import { MapClickCard } from '@/components/map/MapClickCard';
 import { PlannerPanel } from '@/components/planner/PlannerPanel';
 import { MobileSearchModal } from '@/components/planner/MobileSearchModal';
-import { LiveFollowBanner } from '@/components/navigation/LiveFollowBanner';
+import { ActiveTravelView } from '@/components/navigation/ActiveTravelView';
 
 export function MucNavApp() {
   const initialized = useNavStore((s) => s.initialized);
@@ -25,6 +25,7 @@ export function MucNavApp() {
   const departAtLocal = useNavStore((s) => s.departAtLocal);
   const transitFilters = useNavStore((s) => s.transitFilters);
   const walkOptions = useNavStore((s) => s.walkOptions);
+  const liveFollowActive = useNavStore((s) => s.liveFollowActive);
   const mapPickTargetUid = useNavStore((s) => s.mapPickTargetUid);
   const cancelMapPick = useNavStore((s) => s.cancelMapPick);
 
@@ -79,11 +80,15 @@ export function MucNavApp() {
       <MapCanvas />
       <PlannerPanel />
       <MapControls />
-      <LiveFollowBanner />
+      <ActiveTravelView />
 
-      {/* Desktop floating cards (mobile swaps them seamlessly inside MobileBottomSheet!) */}
-      <StationPopup variant="floating" />
-      <MapClickCard variant="floating" />
+      {/* Desktop floating cards (hidden during Active Travel Mode to avoid clutter) */}
+      {!liveFollowActive && (
+        <>
+          <StationPopup variant="floating" />
+          <MapClickCard variant="floating" />
+        </>
+      )}
 
       {/* Mobile full-screen stop search modal */}
       <MobileSearchModal />

@@ -18,6 +18,8 @@ export function MapControls() {
   const showStations = useNavStore((s) => s.showStations);
   const toggleShowStations = useNavStore((s) => s.toggleShowStations);
   const mobileSheetSnap = useNavStore((s) => s.mobileSheetSnap);
+  const liveFollowActive = useNavStore((s) => s.liveFollowActive);
+  const mode = useNavStore((s) => s.mode);
   const lang = useNavStore((s) => s.lang);
   const roadRoute = useNavStore((s) => s.roadRoute);
   const transitPlan = useNavStore((s) => s.transitPlan);
@@ -48,8 +50,14 @@ export function MapControls() {
     );
   };
 
-  const mobileBottomStyle: React.CSSProperties =
-    mobileSheetSnap === 'peek'
+  const mobilePositionStyle: React.CSSProperties = liveFollowActive
+    ? {
+        top:
+          mode === 'transit'
+            ? 'calc(max(0.75rem, env(safe-area-inset-top)) + 56px)'
+            : 'calc(max(0.75rem, env(safe-area-inset-top)) + 124px)',
+      }
+    : mobileSheetSnap === 'peek'
       ? { bottom: 'calc(max(158px, 18dvh + env(safe-area-inset-bottom)) + 12px)' }
       : { bottom: 'calc(50dvh + 10px)' };
 
@@ -130,9 +138,9 @@ export function MapControls() {
 
       {/* Mobile Right-Side Thumb-Zone SBB Action Stack */}
       <div
-        style={mobileBottomStyle}
+        style={mobilePositionStyle}
         className={`md:hidden fixed right-3 z-20 flex flex-col items-end gap-1.5 transition-all duration-200 ${
-          mobileSheetSnap === 'full'
+          !liveFollowActive && mobileSheetSnap === 'full'
             ? 'opacity-0 pointer-events-none translate-y-3'
             : 'opacity-100 pointer-events-auto translate-y-0'
         }`}

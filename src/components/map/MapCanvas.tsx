@@ -38,6 +38,45 @@ function stationDotColor(primary: ReturnType<typeof getStationPrimaryMode>): str
   }
 }
 
+function getMapFitPadding(isDesktop: boolean) {
+  const state = useNavStore.getState();
+  if (isDesktop) {
+    return {
+      top: 96,
+      bottom: 90,
+      left: 480,
+      right: 80,
+    };
+  }
+  if (state.liveFollowActive) {
+    if (state.mode === 'transit') {
+      return {
+        top: 76,
+        bottom: Math.min(350, Math.round(window.innerHeight * 0.43)),
+        left: 36,
+        right: 68,
+      };
+    }
+    return {
+      top: 144,
+      bottom: 112,
+      left: 36,
+      right: 68,
+    };
+  }
+  const snap = state.mobileSheetSnap;
+  const mobileBottom =
+    snap === 'peek'
+      ? Math.round(window.innerHeight * 0.24)
+      : Math.round(window.innerHeight * 0.54);
+  return {
+    top: 64,
+    bottom: mobileBottom,
+    left: 40,
+    right: 68,
+  };
+}
+
 export function MapCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -385,6 +424,9 @@ export function MapCanvas() {
       });
 
       map.on('click', (e: maplibregl.MapMouseEvent) => {
+        // Don't open pin/station popups accidentally while actively navigating
+        if (useNavStore.getState().liveFollowActive) return;
+
         // If user is picking a stop directly on the map from MobileSearchModal, assign immediately
         if (useNavStore.getState().mapPickTargetUid) {
           void useNavStore.getState().completeMapPick(e.lngLat.lat, e.lngLat.lng);
@@ -486,18 +528,8 @@ export function MapCanvas() {
       const bounds = getBoundsFromCoordinates(highlighted.coordinates);
       if (bounds) {
         const isDesktop = window.innerWidth >= 768;
-        const snap = useNavStore.getState().mobileSheetSnap;
-        const mobileBottom =
-          snap === 'peek'
-            ? Math.round(window.innerHeight * 0.24)
-            : Math.round(window.innerHeight * 0.54);
         map.fitBounds(bounds, {
-          padding: {
-            top: isDesktop ? 96 : 64,
-            bottom: isDesktop ? 90 : mobileBottom,
-            left: isDesktop ? 480 : 40,
-            right: isDesktop ? 80 : 68,
-          },
+          padding: getMapFitPadding(isDesktop),
           maxZoom: 16,
           duration: 650,
         });
@@ -631,18 +663,8 @@ export function MapCanvas() {
     if (!bounds) return;
 
     const isDesktop = window.innerWidth >= 768;
-    const snap = useNavStore.getState().mobileSheetSnap;
-    const mobileBottom =
-      snap === 'peek'
-        ? Math.round(window.innerHeight * 0.24)
-        : Math.round(window.innerHeight * 0.54);
     map.fitBounds(bounds, {
-      padding: {
-        top: isDesktop ? 96 : 64,
-        bottom: isDesktop ? 90 : mobileBottom,
-        left: isDesktop ? 480 : 40,
-        right: isDesktop ? 80 : 68,
-      },
+      padding: getMapFitPadding(isDesktop),
       maxZoom: 15.5,
       duration: 750,
     });

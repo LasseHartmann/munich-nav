@@ -15,9 +15,13 @@ import { MobileBottomSheet } from './MobileBottomSheet';
 export function PlannerPanel() {
   const mode = useNavStore((s) => s.mode);
   const lang = useNavStore((s) => s.lang);
+  const liveFollowActive = useNavStore((s) => s.liveFollowActive);
   const t = getTranslations(lang);
 
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+
+  // Hide planner chrome completely during Active Travel Mode so travel view owns the screen
+  if (liveFollowActive) return null;
 
   return (
     <>

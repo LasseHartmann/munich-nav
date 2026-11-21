@@ -138,6 +138,7 @@ interface NavStore {
   liveFollowActive: boolean;
   userLocation: UserLocationState | null;
   gpsError: string | null;
+  arrivalNotice: { destinationName: string; arrivedAt: number } | null;
 
   fitBoundsVersion: number;
   flyToTarget: { lat: number; lon: number; zoom?: number; seq: number } | null;
@@ -190,6 +191,11 @@ interface NavStore {
   setLiveFollowActive: (active: boolean) => void;
   setUserLocation: (loc: UserLocationState | null) => void;
   setGpsError: (err: string | null) => void;
+  completeJourneyArrival: (destinationName: string) => void;
+  dismissArrivalNotice: () => void;
+  extendStayDuringTravel: (waypointIndex: number, extraMinutes: number) => Promise<void>;
+  leaveStayNow: (waypointIndex: number) => Promise<void>;
+  recalculateFromHere: (currentLegIndex?: number) => Promise<void>;
   triggerFitBounds: () => void;
   flyTo: (lat: number, lon: number, zoom?: number) => void;
 }
@@ -230,6 +236,7 @@ export const useNavStore = create<NavStore>((set, get) => ({
   liveFollowActive: false,
   userLocation: null,
   gpsError: null,
+  arrivalNotice: null,
 
   fitBoundsVersion: 0,
   flyToTarget: null,
@@ -887,11 +894,108 @@ export const useNavStore = create<NavStore>((set, get) => ({
   setLiveFollowActive: (liveFollowActive) =>
     set((s) => ({
       liveFollowActive,
+      arrivalNotice: liveFollowActive ? null : s.arrivalNotice,
       gpsError: liveFollowActive ? null : s.gpsError,
       mobileSheetSnap: liveFollowActive ? 'peek' : s.mobileSheetSnap,
     })),
   setUserLocation: (userLocation) => set({ userLocation }),
   setGpsError: (gpsError) => set({ gpsError }),
+
+  completeJourneyArrival: (destinationName) => {
+    if (activeRouteAbort) {
+      activeRouteAbort.abort();
+      activeRouteAbort = null;
+    }
+    set({
+      liveFollowActive: false,
+      waypoints: createInitialWaypoints(),
+      roadRoute: null,
+      transitPlan: null,
+      isRouting: false,
+      routeError: null,
+      highlighted: null,
+      selectedTransitAlternatives: {},
+      mobileStopsEditing: true,
+      mobileSheetSnap: 'peek',
+      arrivalNotice: { destinationName, arrivedAt: Date.now() },
+    });
+  },
+
+  dismissArrivalNotice: () => set({ arrivalNotice: null }),
+
+  extendStayDuringTravel: async (waypointIndex, extraMinutes) => {
+    const filled = get().waypoints.filter((w) => w.place !== null);
+    const target = filled[waypointIndex];
+    if (!target) return;
+    const nextDwell = Math.max(0, Math.min(720, (target.dwellMinutes || 0) + extraMinutes));
+    set((s) => ({
+      waypoints: s.waypoints.map((w) =>
+        w.uid === target.uid ? { ...w, dwellMinutes: nextDwell } : w
+      ),
+      selectedTransitAlternatives: {},
+    }));
+    await get().calculateRoute({});
+  },
+
+  leaveStayNow: async (waypointIndex) => {
+    const filled = get().waypoints.filter((w) => w.place !== null);
+    if (waypointIndex <= 0 || waypointIndex >= filled.length - 1) return;
+    const remaining = filled.slice(waypointIndex).map((w, idx) => ({
+      ...w,
+      dwellMinutes: idx === 0 ? 0 : w.dwellMinutes,
+    }));
+    set({
+      waypoints: remaining,
+      departMode: 'now',
+      departAtLocal: toLocalDateTimeInputValue(),
+      selectedTransitAlternatives: {},
+      highlighted: null,
+    });
+    await get().calculateRoute({});
+  },
+
+  recalculateFromHere: async (currentLegIndex = 0) => {
+    const state = get();
+    const filled = state.waypoints.filter((w) => w.place !== null);
+    if (filled.length < 2) return;
+
+    const remainingTail = filled.slice(Math.min(Math.max(0, currentLegIndex) + 1, filled.length - 1));
+    if (state.userLocation && remainingTail.length >= 1) {
+      const gpsOrigin: Waypoint = {
+        uid: makeUid(),
+        dwellMinutes: 0,
+        place: {
+          id: `gps-recalc-${state.userLocation.lat.toFixed(5)}-${state.userLocation.lon.toFixed(5)}`,
+          name: state.lang === 'de' ? 'Aktueller Standort' : 'Current location',
+          subtitle: 'GPS',
+          lat: state.userLocation.lat,
+          lon: state.userLocation.lon,
+          category: 'gps',
+        },
+      };
+      set({
+        waypoints: [gpsOrigin, ...remainingTail],
+        departMode: 'now',
+        departAtLocal: toLocalDateTimeInputValue(),
+        selectedTransitAlternatives: {},
+        highlighted: null,
+      });
+    } else {
+      // Underground / no GPS fix: refresh live schedule from the start of the current leg right now
+      const fromCurrentLeg = filled
+        .slice(Math.min(Math.max(0, currentLegIndex), filled.length - 2))
+        .map((w, idx) => ({ ...w, dwellMinutes: idx === 0 ? 0 : w.dwellMinutes }));
+      set({
+        waypoints: fromCurrentLeg,
+        departMode: 'now',
+        departAtLocal: toLocalDateTimeInputValue(),
+        selectedTransitAlternatives: {},
+        highlighted: null,
+      });
+    }
+    await get().calculateRoute({});
+  },
+
   triggerFitBounds: () => set((s) => ({ fitBoundsVersion: s.fitBoundsVersion + 1 })),
   flyTo: (lat, lon, zoom = 15) =>
     set((s) => ({
