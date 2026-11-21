@@ -30,8 +30,18 @@ export function MapControls() {
   const t = getTranslations(lang);
   const [locating, setLocating] = useState(false);
 
+  const isRouting = useNavStore((s) => s.isRouting);
+  const isLocatingStart = useNavStore((s) => s.isLocatingStart);
+  const waypoints = useNavStore((s) => s.waypoints);
+  const selectedStation = useNavStore((s) => s.selectedStation);
+  const mapClickPin = useNavStore((s) => s.mapClickPin);
+
   const hasRoute = Boolean(roadRoute || transitPlan);
   const isHybrid = mapStyle === 'hybrid';
+  const filledCount = waypoints.filter((w) => w.place !== null).length;
+  const showingDetail = Boolean(selectedStation || mapClickPin);
+  const inTripMode = !showingDetail && (hasRoute || isRouting || isLocatingStart || filledCount > 0);
+  const peekPx = showingDetail ? 158 : inTripMode ? 98 : 134;
 
   const handleLocateMe = () => {
     if (!navigator.geolocation) return;
@@ -58,8 +68,8 @@ export function MapControls() {
             : 'calc(max(0.75rem, env(safe-area-inset-top)) + 124px)',
       }
     : mobileSheetSnap === 'peek'
-      ? { bottom: 'calc(max(158px, 18dvh + env(safe-area-inset-bottom)) + 12px)' }
-      : { bottom: 'calc(50dvh + 10px)' };
+      ? { bottom: `calc(${peekPx}px + env(safe-area-inset-bottom) + 12px)` }
+      : { bottom: 'calc(52dvh + 10px)' };
 
   return (
     <>

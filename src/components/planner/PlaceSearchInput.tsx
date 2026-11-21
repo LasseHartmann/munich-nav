@@ -20,6 +20,7 @@ interface PlaceSearchInputProps {
   value: PlaceResult | null;
   placeholder: string;
   onSelect: (place: PlaceResult | null) => void;
+  borderless?: boolean;
 }
 
 function ModeMiniDots({ modes }: { modes?: string[] }) {
@@ -53,6 +54,7 @@ export function PlaceSearchInput({
   value,
   placeholder,
   onSelect,
+  borderless = false,
 }: PlaceSearchInputProps) {
   const lang = useNavStore((s) => s.lang);
   const favorites = useNavStore((s) => s.favorites);
@@ -179,12 +181,16 @@ export function PlaceSearchInput({
 
   return (
     <div ref={containerRef} className="relative flex-1 min-w-0">
-      {/* Mobile: 42px SBB flat input trigger opening Full-Screen Search */}
-      <div className="md:hidden flex items-center gap-1">
+      {/* Mobile: Clean SBB input trigger opening Full-Screen Search */}
+      <div className="md:hidden flex items-center gap-0.5">
         <button
           type="button"
           onClick={() => openMobileSearch(waypointUid)}
-          className="flex-1 min-w-0 h-10 rounded-lg border border-[#d4d4d4] dark:border-[#3d3d3d] bg-[#f6f6f6] dark:bg-[#262626] px-3 flex items-center text-left active:bg-[#ececec] dark:active:bg-[#303030] transition-colors cursor-pointer"
+          className={
+            borderless
+              ? 'flex-1 min-w-0 h-11 px-1 flex items-center text-left active:opacity-70 transition-opacity cursor-pointer'
+              : 'flex-1 min-w-0 h-10 rounded-lg border border-[#d4d4d4] dark:border-[#3d3d3d] bg-[#f6f6f6] dark:bg-[#262626] px-3 flex items-center text-left active:bg-[#ececec] dark:active:bg-[#303030] transition-colors cursor-pointer'
+          }
         >
           <span
             className={`text-sm truncate ${
@@ -196,7 +202,7 @@ export function PlaceSearchInput({
             {value ? value.name : placeholder}
           </span>
         </button>
-        {value && (
+        {value && !borderless && (
           <button
             type="button"
             onClick={() => onSelect(null)}
@@ -208,7 +214,7 @@ export function PlaceSearchInput({
         )}
       </div>
 
-      {/* Desktop: Clean SBB flat inline input */}
+      {/* Desktop: Clean SBB inline input */}
       <div className="hidden md:flex relative items-center">
         <input
           type="text"
@@ -220,10 +226,14 @@ export function PlaceSearchInput({
           }}
           placeholder={placeholder}
           aria-label={placeholder}
-          className="w-full h-9 rounded-lg border border-[#d4d4d4] dark:border-[#3d3d3d] bg-[#f6f6f6] dark:bg-[#262626] px-3 pr-7 text-[13px] font-medium text-[#111111] dark:text-white placeholder:font-normal placeholder:text-[#767676] dark:placeholder:text-[#888888] focus:bg-white dark:focus:bg-[#1e1e1e] focus:outline-none focus:border-[#111111] dark:focus:border-white transition-colors"
+          className={
+            borderless
+              ? 'w-full h-10 bg-transparent px-1 pr-6 text-[13px] font-medium text-[#111111] dark:text-white placeholder:font-normal placeholder:text-[#767676] dark:placeholder:text-[#888888] focus:outline-none'
+              : 'w-full h-9 rounded-lg border border-[#d4d4d4] dark:border-[#3d3d3d] bg-[#f6f6f6] dark:bg-[#262626] px-3 pr-7 text-[13px] font-medium text-[#111111] dark:text-white placeholder:font-normal placeholder:text-[#767676] dark:placeholder:text-[#888888] focus:bg-white dark:focus:bg-[#1e1e1e] focus:outline-none focus:border-[#111111] dark:focus:border-white transition-colors'
+          }
         />
         {loading ? (
-          <Loader2 className="w-3.5 h-3.5 text-[#686868] animate-spin absolute right-2.5 pointer-events-none" />
+          <Loader2 className="w-3.5 h-3.5 text-[#686868] animate-spin absolute right-1.5 pointer-events-none" />
         ) : query ? (
           <button
             type="button"
@@ -232,7 +242,7 @@ export function PlaceSearchInput({
               onSelect(null);
               setOpen(true);
             }}
-            className="absolute right-2 p-0.5 text-[#767676] hover:text-[#111111] dark:hover:text-white cursor-pointer"
+            className="absolute right-1 p-0.5 text-[#767676] hover:text-[#111111] dark:hover:text-white cursor-pointer"
             aria-label="Clear input"
           >
             <X className="w-3.5 h-3.5" />

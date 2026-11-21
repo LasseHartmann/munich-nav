@@ -86,6 +86,7 @@ function berlinLocalToIso(localVal: string): string {
 }
 
 let activeRouteAbort: AbortController | null = null;
+let quickLocateSeq = 0;
 
 interface MapClickPinState {
   lat: number;
@@ -119,6 +120,7 @@ interface NavStore {
   roadRoute: RoadRouteResult | null;
   transitPlan: TransitPlanResult | null;
   isRouting: boolean;
+  isLocatingStart: boolean;
   isOptimizing: boolean;
   routeError: string | null;
 
@@ -167,6 +169,7 @@ interface NavStore {
   reverseWaypoints: () => void;
   clearRoute: () => void;
   applyPlaceAs: (role: 'start' | 'stop' | 'end', place: PlaceResult) => void;
+  quickRouteToDestination: (place: PlaceResult) => Promise<void>;
   loadDemoTrip: () => void;
 
   setDepartMode: (dm: TransitTimeMode) => void;
@@ -218,6 +221,7 @@ export const useNavStore = create<NavStore>((set, get) => ({
   roadRoute: null,
   transitPlan: null,
   isRouting: false,
+  isLocatingStart: false,
   isOptimizing: false,
   routeError: null,
 
@@ -225,7 +229,7 @@ export const useNavStore = create<NavStore>((set, get) => ({
   selectedStation: null,
   mapClickPin: null,
 
-  mobileSheetSnap: 'half',
+  mobileSheetSnap: 'peek',
   mobileStopsEditing: true,
   mobileSearchTargetUid: null,
   mapPickTargetUid: null,
@@ -264,6 +268,7 @@ export const useNavStore = create<NavStore>((set, get) => ({
       favorites,
       recents,
       mobileStopsEditing: !hasUrlRoute,
+      mobileSheetSnap: hasUrlRoute ? 'half' : 'peek',
       ...(fromUrl?.mode ? { mode: fromUrl.mode } : {}),
       ...(fromUrl?.mapStyle ? { mapStyle: fromUrl.mapStyle } : {}),
       ...(fromUrl?.waypoints ? { waypoints: fromUrl.waypoints } : {}),
@@ -491,6 +496,7 @@ export const useNavStore = create<NavStore>((set, get) => ({
   },
 
   clearRoute: () => {
+    quickLocateSeq += 1;
     if (activeRouteAbort) {
       activeRouteAbort.abort();
       activeRouteAbort = null;
@@ -500,15 +506,22 @@ export const useNavStore = create<NavStore>((set, get) => ({
       roadRoute: null,
       transitPlan: null,
       isRouting: false,
+      isLocatingStart: false,
       routeError: null,
       highlighted: null,
       selectedTransitAlternatives: {},
       liveFollowActive: false,
       mobileStopsEditing: true,
+      mobileSheetSnap: 'peek',
     });
   },
 
   applyPlaceAs: (role, place) => {
+    if (role === 'end' && !get().waypoints[0]?.place) {
+      void get().quickRouteToDestination(place);
+      return;
+    }
+
     get().addRecent(place);
     set((s) => {
       const next = [...s.waypoints];
@@ -542,8 +555,123 @@ export const useNavStore = create<NavStore>((set, get) => ({
     if (get().waypoints.filter((w) => w.place !== null).length >= 2) {
       void get().calculateRoute({});
     } else {
+      set({ mobileSheetSnap: 'half' });
       get().flyTo(place.lat, place.lon, 14.5);
     }
+  },
+
+  quickRouteToDestination: async (place) => {
+    const seq = ++quickLocateSeq;
+    get().addRecent(place);
+
+    set((s) => {
+      const next = [...s.waypoints];
+      next[next.length - 1] = { ...next[next.length - 1], place, dwellMinutes: 0 };
+      return {
+        waypoints: next,
+        mapClickPin: null,
+        selectedStation: null,
+        selectedTransitAlternatives: {},
+        highlighted: null,
+        routeError: null,
+        mobileSearchTargetUid: null,
+      };
+    });
+
+    const state = get();
+    const startWp = state.waypoints[0];
+    if (startWp?.place) {
+      set({ isLocatingStart: false, mobileSheetSnap: 'half' });
+      await get().calculateRoute({});
+      return;
+    }
+
+    const makeGpsPlace = async (lat: number, lon: number): Promise<PlaceResult> => {
+      const fallbackName = get().lang === 'de' ? 'Mein Standort' : 'My location';
+      try {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 1800);
+        const res = await fetch(
+          `/api/geocode?lat=${lat.toFixed(6)}&lon=${lon.toFixed(6)}&lang=${get().lang}`,
+          { signal: ctrl.signal }
+        );
+        clearTimeout(tid);
+        if (res.ok) {
+          const data = (await res.json()) as { place?: PlaceResult };
+          if (data.place) {
+            return { ...data.place, category: 'gps', name: data.place.name || fallbackName };
+          }
+        }
+      } catch {
+        // Use GPS fallback label
+      }
+      return {
+        id: `gps-${lat.toFixed(5)}-${lon.toFixed(5)}`,
+        name: fallbackName,
+        subtitle: `${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+        lat,
+        lon,
+        category: 'gps',
+      };
+    };
+
+    // Fast path: reuse already-acquired GPS fix immediately
+    if (state.userLocation) {
+      const { lat, lon } = state.userLocation;
+      set({ isLocatingStart: true, mobileSheetSnap: 'half' });
+      const gpsPlace = await makeGpsPlace(lat, lon);
+      if (seq !== quickLocateSeq) return;
+      set((s) => {
+        const next = [...s.waypoints];
+        if (next[0] && !next[0].place) {
+          next[0] = { ...next[0], place: gpsPlace, dwellMinutes: 0 };
+        }
+        return { waypoints: next, isLocatingStart: false };
+      });
+      await get().calculateRoute({});
+      return;
+    }
+
+    // Attempt live browser GPS automatically
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      set({ isLocatingStart: true, mobileSheetSnap: 'half' });
+      const pos = await new Promise<GeolocationPosition | null>((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (p) => resolve(p),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 4500, maximumAge: 60000 }
+        );
+      });
+
+      if (seq !== quickLocateSeq) return;
+
+      if (pos) {
+        const { latitude: lat, longitude: lon, accuracy, heading } = pos.coords;
+        set({ userLocation: { lat, lon, accuracy, heading }, gpsError: null });
+        const gpsPlace = await makeGpsPlace(lat, lon);
+        if (seq !== quickLocateSeq) return;
+        set((s) => {
+          const next = [...s.waypoints];
+          if (next[0] && !next[0].place) {
+            next[0] = { ...next[0], place: gpsPlace, dwellMinutes: 0 };
+          }
+          return { waypoints: next, isLocatingStart: false };
+        });
+        await get().calculateRoute({});
+        return;
+      }
+    }
+
+    // GPS unavailable or denied: open Start picker smoothly on mobile and focus destination on map
+    if (seq !== quickLocateSeq) return;
+    const latestStartUid = get().waypoints[0]?.uid ?? null;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    set({
+      isLocatingStart: false,
+      mobileSheetSnap: 'half',
+      mobileSearchTargetUid: isMobile ? latestStartUid : null,
+    });
+    get().flyTo(place.lat, place.lon, 14.5);
   },
 
   loadDemoTrip: () => {

@@ -67,8 +67,8 @@ function getMapFitPadding(isDesktop: boolean) {
   const snap = state.mobileSheetSnap;
   const mobileBottom =
     snap === 'peek'
-      ? Math.round(window.innerHeight * 0.24)
-      : Math.round(window.innerHeight * 0.54);
+      ? 148
+      : Math.round(window.innerHeight * 0.55);
   return {
     top: 64,
     bottom: mobileBottom,

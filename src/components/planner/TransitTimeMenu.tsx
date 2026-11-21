@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Calendar,
@@ -15,13 +15,13 @@ import { getTranslations } from '@/lib/i18n';
 import { useNowTick } from '@/lib/useNowTick';
 import { useNavStore } from '@/store/useNavStore';
 import type { Language, TransitTimeMode } from '@/lib/types';
+import { ScrollWheelColumn, WHEEL_ITEM_HEIGHT } from '@/components/ui/ScrollWheelColumn';
 
 interface TransitTimeMenuProps {
   open: boolean;
   onClose: () => void;
 }
 
-const ITEM_HEIGHT = 44;
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
@@ -68,131 +68,6 @@ function formatReadableDate(
   if (dateStr === todayStr) return `${t.today}, ${formatted}`;
   if (dateStr === tomorrowStr) return `${t.tomorrow}, ${formatted}`;
   return formatted;
-}
-
-interface WheelColumnProps {
-  items: string[];
-  selectedIndex: number;
-  onChange: (index: number) => void;
-  ariaLabel: string;
-  testId: string;
-}
-
-function ScrollWheelColumn({
-  items,
-  selectedIndex,
-  onChange,
-  ariaLabel,
-  testId,
-}: WheelColumnProps) {
-  const listRef = useRef<HTMLDivElement>(null);
-  const mountedRef = useRef(false);
-  const isProgrammaticRef = useRef(false);
-  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastCommittedRef = useRef(selectedIndex);
-
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-    const isInitial = !mountedRef.current;
-    mountedRef.current = true;
-
-    if (!isInitial && selectedIndex === lastCommittedRef.current) {
-      return;
-    }
-
-    lastCommittedRef.current = selectedIndex;
-    const targetTop = selectedIndex * ITEM_HEIGHT;
-    isProgrammaticRef.current = true;
-    el.scrollTop = targetTop;
-    const id = setTimeout(() => {
-      isProgrammaticRef.current = false;
-    }, 100);
-    return () => clearTimeout(id);
-  }, [selectedIndex]);
-
-  useEffect(() => {
-    return () => {
-      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-    };
-  }, []);
-
-  const handleScroll = () => {
-    const el = listRef.current;
-    if (!el || isProgrammaticRef.current) return;
-
-    const rawIdx = Math.round(el.scrollTop / ITEM_HEIGHT);
-    const clamped = Math.min(items.length - 1, Math.max(0, rawIdx));
-
-    if (clamped !== lastCommittedRef.current) {
-      lastCommittedRef.current = clamped;
-      onChange(clamped);
-    }
-
-    if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-    settleTimerRef.current = setTimeout(() => {
-      if (!listRef.current) return;
-      const snappedIdx = Math.min(
-        items.length - 1,
-        Math.max(0, Math.round(listRef.current.scrollTop / ITEM_HEIGHT))
-      );
-      if (snappedIdx !== lastCommittedRef.current) {
-        lastCommittedRef.current = snappedIdx;
-        onChange(snappedIdx);
-      }
-    }, 80);
-  };
-
-  const handleItemClick = (idx: number) => {
-    const el = listRef.current;
-    lastCommittedRef.current = idx;
-    onChange(idx);
-    if (el) {
-      isProgrammaticRef.current = true;
-      el.scrollTo({ top: idx * ITEM_HEIGHT, behavior: 'smooth' });
-      setTimeout(() => {
-        isProgrammaticRef.current = false;
-      }, 280);
-    }
-  };
-
-  return (
-    <div
-      ref={listRef}
-      data-testid={testId}
-      role="listbox"
-      aria-label={ariaLabel}
-      onScroll={handleScroll}
-      style={{ height: `${ITEM_HEIGHT * 5}px` }}
-      className="relative flex-1 overflow-y-auto snap-y snap-mandatory no-scrollbar touch-pan-y overscroll-contain"
-    >
-      <div style={{ height: `${ITEM_HEIGHT * 2}px` }} aria-hidden="true" />
-      {items.map((label, idx) => {
-        const dist = Math.abs(idx - selectedIndex);
-        const isSelected = dist === 0;
-        return (
-          <button
-            key={label}
-            type="button"
-            role="option"
-            aria-selected={isSelected}
-            onClick={() => handleItemClick(idx)}
-            style={{ height: `${ITEM_HEIGHT}px` }}
-            className={`w-full snap-center flex items-center justify-center font-mono tabular-nums transition-colors cursor-pointer select-none ${
-              isSelected
-                ? 'text-2xl font-bold text-[#111111] dark:text-white'
-                : dist === 1
-                  ? 'text-lg font-medium text-[#767676] dark:text-[#888888]'
-                  : 'text-base font-normal text-[#bdbdbd] dark:text-[#555555]'
-            }`}
-          >
-            {label}
-          </button>
-        );
-      })}
-      <div style={{ height: `${ITEM_HEIGHT * 2}px` }} aria-hidden="true" />
-    </div>
-  );
 }
 
 interface CalendarPickerProps {
@@ -492,7 +367,7 @@ export function TransitTimeMenu({ open, onClose }: TransitTimeMenuProps) {
               {/* Scrollable Drum Time Picker */}
               <div className="relative rounded-lg border border-[#dcdcdc] dark:border-[#383838] bg-white dark:bg-[#1e1e1e] overflow-hidden">
                 <div
-                  style={{ height: `${ITEM_HEIGHT}px` }}
+                  style={{ height: `${WHEEL_ITEM_HEIGHT}px` }}
                   className="pointer-events-none absolute inset-x-2.5 top-1/2 -translate-y-1/2 rounded-md bg-[#f2f2f2] dark:bg-[#2b2b2b] border border-[#e2e2e2] dark:border-[#3d3d3d]"
                 />
 

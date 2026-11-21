@@ -267,7 +267,11 @@ function TransitSegmentRow({ segment }: { segment: TransitSegment }) {
   );
 }
 
-export function RouteResults() {
+interface RouteResultsProps {
+  hideSummaryCard?: boolean;
+}
+
+export function RouteResults({ hideSummaryCard = false }: RouteResultsProps = {}) {
   const lang = useNavStore((s) => s.lang);
   const mode = useNavStore((s) => s.mode);
   const walkOptions = useNavStore((s) => s.walkOptions);
@@ -318,56 +322,58 @@ export function RouteResults() {
 
     return (
       <div className="space-y-3">
-        {/* Flat SBB Timetable Summary Card (Zero gradients!) */}
-        <div className="p-3.5 rounded-lg bg-white dark:bg-[#212121] border border-[#dcdcdc] dark:border-[#333333]">
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xl font-bold tracking-tight text-[#111111] dark:text-white tabular-nums">
-                  {formatDuration(transitPlan.totalDurationSeconds, lang)}
-                </span>
-                {firstItin && lastItin && (
-                  <span className="text-sm font-mono font-semibold tabular-nums text-[#444444] dark:text-[#cccccc]">
-                    {formatMunichTime(firstItin.startTime, lang)} –{' '}
-                    {formatMunichTime(lastItin.endTime, lang)}
+        {/* Flat SBB Timetable Summary Card (shown on desktop; mobile uses sticky sheet header) */}
+        {!hideSummaryCard && (
+          <div className="p-3.5 rounded-lg bg-white dark:bg-[#212121] border border-[#dcdcdc] dark:border-[#333333]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xl font-bold tracking-tight text-[#111111] dark:text-white tabular-nums">
+                    {formatDuration(transitPlan.totalDurationSeconds, lang)}
                   </span>
-                )}
-              </div>
+                  {firstItin && lastItin && (
+                    <span className="text-sm font-mono font-semibold tabular-nums text-[#444444] dark:text-[#cccccc]">
+                      {formatMunichTime(firstItin.startTime, lang)} –{' '}
+                      {formatMunichTime(lastItin.endTime, lang)}
+                    </span>
+                  )}
+                </div>
 
-              <div className="flex items-center gap-2.5 text-xs text-[#686868] dark:text-[#999999] flex-wrap">
-                {transitPlan.arriveBy && transitPlan.targetTime ? (
-                  <span className="inline-flex items-center gap-1 font-semibold text-[#111111] dark:text-white tabular-nums">
-                    <Flag className="w-3 h-3 text-[#eb0000]" />
-                    {t.arriveByBadge} {formatMunichTime(transitPlan.targetTime, lang)}
-                  </span>
-                ) : (
-                  <CountdownStatus isoTime={firstItin?.startTime} nowMs={nowMs} />
-                )}
-                <span>
-                  {t.travelTime}: {formatDuration(transitPlan.totalTravelSeconds, lang)}
-                </span>
-                {transitPlan.totalDwellSeconds > 0 && (
+                <div className="flex items-center gap-2.5 text-xs text-[#686868] dark:text-[#999999] flex-wrap">
+                  {transitPlan.arriveBy && transitPlan.targetTime ? (
+                    <span className="inline-flex items-center gap-1 font-semibold text-[#111111] dark:text-white tabular-nums">
+                      <Flag className="w-3 h-3 text-[#eb0000]" />
+                      {t.arriveByBadge} {formatMunichTime(transitPlan.targetTime, lang)}
+                    </span>
+                  ) : (
+                    <CountdownStatus isoTime={firstItin?.startTime} nowMs={nowMs} />
+                  )}
                   <span>
-                    · {t.stayTime}: {formatDuration(transitPlan.totalDwellSeconds, lang)}
+                    {t.travelTime}: {formatDuration(transitPlan.totalTravelSeconds, lang)}
                   </span>
-                )}
+                  {transitPlan.totalDwellSeconds > 0 && (
+                    <span>
+                      · {t.stayTime}: {formatDuration(transitPlan.totalDwellSeconds, lang)}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
 
-            <button
-              type="button"
-              onClick={() => setLiveFollowActive(!liveFollowActive)}
-              className={`inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0 ${
-                liveFollowActive
-                  ? 'bg-[#212121] hover:bg-black text-white dark:bg-white dark:text-[#111111]'
-                  : 'bg-[#eb0000] hover:bg-[#c60018] text-white'
-              }`}
-            >
-              <Navigation className="w-3.5 h-3.5" />
-              <span>{liveFollowActive ? t.liveFollowStop : t.liveFollowStart}</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setLiveFollowActive(!liveFollowActive)}
+                className={`inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0 ${
+                  liveFollowActive
+                    ? 'bg-[#212121] hover:bg-black text-white dark:bg-white dark:text-[#111111]'
+                    : 'bg-[#eb0000] hover:bg-[#c60018] text-white'
+                }`}
+              >
+                <Navigation className="w-3.5 h-3.5" />
+                <span>{liveFollowActive ? t.liveFollowStop : t.liveFollowStart}</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Chained Legs */}
         <div className="space-y-3">
@@ -506,68 +512,97 @@ export function RouteResults() {
 
     return (
       <div className="space-y-3">
-        <div className="p-3.5 rounded-lg bg-white dark:bg-[#212121] border border-[#dcdcdc] dark:border-[#333333]">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="flex items-baseline gap-2.5">
-                <span className="text-xl font-bold tracking-tight text-[#111111] dark:text-white tabular-nums">
-                  {formatDuration(roadRoute.totalDurationSeconds, lang)}
-                </span>
-                <span className="text-sm font-medium text-[#686868] dark:text-[#999999] tabular-nums">
-                  {formatDistance(roadRoute.totalDistanceMeters, lang)}
-                </span>
+        {!hideSummaryCard ? (
+          <div className="p-3.5 rounded-lg bg-white dark:bg-[#212121] border border-[#dcdcdc] dark:border-[#333333]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="flex items-baseline gap-2.5">
+                  <span className="text-xl font-bold tracking-tight text-[#111111] dark:text-white tabular-nums">
+                    {formatDuration(roadRoute.totalDurationSeconds, lang)}
+                  </span>
+                  <span className="text-sm font-medium text-[#686868] dark:text-[#999999] tabular-nums">
+                    {formatDistance(roadRoute.totalDistanceMeters, lang)}
+                  </span>
+                </div>
+                <div className="text-xs text-[#686868] dark:text-[#999999] mt-0.5 tabular-nums">
+                  {etaIso ? `ETA ${formatMunichTime(etaIso, lang)} · ` : ''}
+                  {t.viaProvider}{' '}
+                  {roadRoute.provider === 'ors' ? 'OpenRouteService' : 'Valhalla OSM'}
+                </div>
               </div>
-              <div className="text-xs text-[#686868] dark:text-[#999999] mt-0.5 tabular-nums">
-                {etaIso ? `ETA ${formatMunichTime(etaIso, lang)} · ` : ''}
-                {t.viaProvider}{' '}
-                {roadRoute.provider === 'ors' ? 'OpenRouteService' : 'Valhalla OSM'}
-              </div>
+
+              <button
+                type="button"
+                onClick={() => setLiveFollowActive(!liveFollowActive)}
+                className={`inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0 ${
+                  liveFollowActive
+                    ? 'bg-[#212121] hover:bg-black text-white dark:bg-white dark:text-[#111111]'
+                    : 'bg-[#eb0000] hover:bg-[#c60018] text-white'
+                }`}
+              >
+                <Navigation className="w-3.5 h-3.5" />
+                <span>{liveFollowActive ? t.liveFollowStop : t.liveFollowStart}</span>
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setLiveFollowActive(!liveFollowActive)}
-              className={`inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0 ${
-                liveFollowActive
-                  ? 'bg-[#212121] hover:bg-black text-white dark:bg-white dark:text-[#111111]'
-                  : 'bg-[#eb0000] hover:bg-[#c60018] text-white'
-              }`}
-            >
-              <Navigation className="w-3.5 h-3.5" />
-              <span>{liveFollowActive ? t.liveFollowStop : t.liveFollowStart}</span>
-            </button>
+            {/* Calm Walk Quality Metrics Row */}
+            {mode === 'foot' && (roadRoute.walkMetrics || walkOptions.avoidSteps) && (
+              <div className="mt-2.5 pt-2.5 border-t border-[#ececec] dark:border-[#2e2e2e] flex items-center gap-3 text-xs font-medium text-[#444444] dark:text-[#cccccc] flex-wrap">
+                {roadRoute.walkMetrics && (
+                  <>
+                    <span className="inline-flex items-center gap-1 tabular-nums">
+                      <Trees className="w-3.5 h-3.5 text-[#007a3e] dark:text-[#34d399]" />
+                      <strong className="font-semibold text-[#111111] dark:text-white">
+                        {roadRoute.walkMetrics.greenPercent}%
+                      </strong>{' '}
+                      {t.walkFilters.greenScore}
+                    </span>
+                    <span className="inline-flex items-center gap-1 tabular-nums">
+                      <VolumeX className="w-3.5 h-3.5 text-[#686868] dark:text-[#999999]" />
+                      <strong className="font-semibold text-[#111111] dark:text-white">
+                        {roadRoute.walkMetrics.quietPercent}%
+                      </strong>{' '}
+                      {t.walkFilters.quietScore}
+                    </span>
+                  </>
+                )}
+                {walkOptions.avoidSteps && (
+                  <span className="inline-flex items-center gap-1 text-[#111111] dark:text-white">
+                    <Accessibility className="w-3.5 h-3.5 text-[#686868] dark:text-[#999999]" />
+                    {t.walkFilters.stepFree}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
-
-          {/* Calm Walk Quality Metrics Row */}
-          {mode === 'foot' && (roadRoute.walkMetrics || walkOptions.avoidSteps) && (
-            <div className="mt-2.5 pt-2.5 border-t border-[#ececec] dark:border-[#2e2e2e] flex items-center gap-3 text-xs font-medium text-[#444444] dark:text-[#cccccc] flex-wrap">
-              {roadRoute.walkMetrics && (
-                <>
-                  <span className="inline-flex items-center gap-1 tabular-nums">
-                    <Trees className="w-3.5 h-3.5 text-[#007a3e] dark:text-[#34d399]" />
-                    <strong className="font-semibold text-[#111111] dark:text-white">
-                      {roadRoute.walkMetrics.greenPercent}%
-                    </strong>{' '}
-                    {t.walkFilters.greenScore}
-                  </span>
-                  <span className="inline-flex items-center gap-1 tabular-nums">
-                    <VolumeX className="w-3.5 h-3.5 text-[#686868] dark:text-[#999999]" />
-                    <strong className="font-semibold text-[#111111] dark:text-white">
-                      {roadRoute.walkMetrics.quietPercent}%
-                    </strong>{' '}
-                    {t.walkFilters.quietScore}
-                  </span>
-                </>
-              )}
-              {walkOptions.avoidSteps && (
-                <span className="inline-flex items-center gap-1 text-[#111111] dark:text-white">
-                  <Accessibility className="w-3.5 h-3.5 text-[#686868] dark:text-[#999999]" />
-                  {t.walkFilters.stepFree}
+        ) : mode === 'foot' && (roadRoute.walkMetrics || walkOptions.avoidSteps) ? (
+          <div className="px-3 py-2 rounded-lg bg-white dark:bg-[#212121] border border-[#dcdcdc] dark:border-[#333333] flex items-center gap-3 text-xs font-medium text-[#444444] dark:text-[#cccccc] flex-wrap">
+            {roadRoute.walkMetrics && (
+              <>
+                <span className="inline-flex items-center gap-1 tabular-nums">
+                  <Trees className="w-3.5 h-3.5 text-[#007a3e] dark:text-[#34d399]" />
+                  <strong className="font-semibold text-[#111111] dark:text-white">
+                    {roadRoute.walkMetrics.greenPercent}%
+                  </strong>{' '}
+                  {t.walkFilters.greenScore}
                 </span>
-              )}
-            </div>
-          )}
-        </div>
+                <span className="inline-flex items-center gap-1 tabular-nums">
+                  <VolumeX className="w-3.5 h-3.5 text-[#686868] dark:text-[#999999]" />
+                  <strong className="font-semibold text-[#111111] dark:text-white">
+                    {roadRoute.walkMetrics.quietPercent}%
+                  </strong>{' '}
+                  {t.walkFilters.quietScore}
+                </span>
+              </>
+            )}
+            {walkOptions.avoidSteps && (
+              <span className="inline-flex items-center gap-1 text-[#111111] dark:text-white">
+                <Accessibility className="w-3.5 h-3.5 text-[#686868] dark:text-[#999999]" />
+                {t.walkFilters.stepFree}
+              </span>
+            )}
+          </div>
+        ) : null}
 
         {/* Turn-by-turn legs */}
         <div className="space-y-2">
@@ -661,6 +696,9 @@ export function RouteResults() {
       </div>
     );
   }
+
+  // Mobile active-trip view handles empty/partial state directly via the From/To card
+  if (hideSummaryCard) return null;
 
   // RESTRAINED SBB EMPTY STATE (Zero gradient icon boxes, zero sparkle icons!)
   return (

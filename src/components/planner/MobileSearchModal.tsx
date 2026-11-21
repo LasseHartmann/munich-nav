@@ -51,6 +51,7 @@ export function MobileSearchModal() {
   const recents = useNavStore((s) => s.recents);
   const closeMobileSearch = useNavStore((s) => s.closeMobileSearch);
   const setWaypointPlace = useNavStore((s) => s.setWaypointPlace);
+  const quickRouteToDestination = useNavStore((s) => s.quickRouteToDestination);
   const startMapPickForWaypoint = useNavStore((s) => s.startMapPickForWaypoint);
   const toggleFavorite = useNavStore((s) => s.toggleFavorite);
 
@@ -109,6 +110,8 @@ export function MobileSearchModal() {
 
   const isStart = targetIdx === 0;
   const isEnd = targetIdx === waypoints.length - 1;
+  const startPlace = waypoints[0]?.place ?? null;
+  const endPlace = waypoints[waypoints.length - 1]?.place ?? null;
 
   const trimmed = query.trim();
   const results = searchState.query === trimmed ? searchState.items : [];
@@ -117,7 +120,11 @@ export function MobileSearchModal() {
   const handleChoose = (place: PlaceResult) => {
     setQuery('');
     closeMobileSearch();
-    setWaypointPlace(targetUid, place);
+    if (isEnd && !startPlace) {
+      void quickRouteToDestination(place);
+    } else {
+      setWaypointPlace(targetUid, place);
+    }
   };
 
   const handleUseMyLocation = () => {
@@ -201,7 +208,16 @@ export function MobileSearchModal() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={targetWp.place?.name || t.searchPlaceholder}
+              placeholder={
+                targetWp.place?.name ||
+                (isStart && endPlace
+                  ? t.chooseStart
+                  : isStart
+                    ? t.originPlaceholder
+                    : isEnd
+                      ? t.whereTo
+                      : t.searchPlaceholder)
+              }
               className="w-full h-11 rounded-lg border border-[#212121] dark:border-[#888888] bg-[#f6f6f6] dark:bg-[#282828] pl-9 pr-9 text-base font-normal text-[#111111] dark:text-white placeholder:text-[#767676] focus:outline-none focus:bg-white dark:focus:bg-[#1e1e1e]"
             />
             {loading ? (
@@ -218,6 +234,12 @@ export function MobileSearchModal() {
             ) : null}
           </div>
         </div>
+        {isStart && endPlace && !startPlace && (
+          <div className="mt-2 pl-12 pr-1 flex items-center gap-1.5 text-xs text-[#686868] dark:text-[#999999]">
+            <span className="w-2 h-2 rounded-full bg-[#eb0000] shrink-0" />
+            <span className="truncate">→ {endPlace.name}</span>
+          </div>
+        )}
       </div>
 
       {/* Scrollable Results & Clean Swiss Rows */}
